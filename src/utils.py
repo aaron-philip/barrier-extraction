@@ -1,5 +1,8 @@
 import numpy as np
 import findiff as fd
+import jax.numpy as jnp
+import pandas as pd
+import os
 
 def p_fus_flat(ecm,L,bL):
     eps=0.4
@@ -109,3 +112,51 @@ def point_diff(x,y,std,dE=1):
         # print(i,std[i],y[i],der_err[i])
     
     return der, der_err
+
+
+def compute_peak_metrics(
+    x: np.ndarray,
+    y: np.ndarray,
+    x_min: float = 65.0,
+    x_max: float = 80.0
+):
+    """
+    Given arrays x (shape [n,]) and y (shape [n,]), find within [x_min, x_max]:
+      - peak_loc: x at max(y)
+      - peak_height: max(y)
+      - fwhm: full width at half maximum
+    Returns (peak_loc, peak_height, fwhm).
+    """
+    x = np.asarray(x)
+    y = np.asarray(y)
+    # restrict to subrange
+    if x_min is not None or x_max is not None:
+        mask = np.ones_like(x, dtype=bool)
+        if x_min is not None:
+            mask &= (x >= x_min)
+        if x_max is not None:
+            mask &= (x <= x_max)
+        x_sub = x[mask]
+        y_sub = y[mask]
+    else:
+        x_sub, y_sub = x, y
+
+    if x_sub.size == 0:
+        return np.nan, np.nan, np.nan
+
+    # find peak within subrange
+    idx = np.argmax(y_sub)
+    peak_loc    = x_sub[idx]
+    peak_height = y_sub[idx]
+    half        = peak_height / 2.0
+
+    # FWHM on subrange
+    inds = np.where(y_sub >= half)[0]
+    if inds.size >= 2:
+        fwhm = x_sub[inds[-1]] - x_sub[inds[0]]
+    else:
+        fwhm = np.nan
+
+    return peak_loc, peak_height, fwhm
+
+
