@@ -1,8 +1,7 @@
 import argparse
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import scipy as sp
+import os
 import sys 
 if "../" not in sys.path:
     sys.path.append("../")
@@ -57,17 +56,30 @@ def main(args):
     print(f"  R0    = {R0_opt:.4f} ± {perr[1]:.4f} fm")
     print(f"  hbarw = {hbarw_opt:.4f} ± {perr[2]:.4f} MeV")
 
-
-    # Create a training set for the BNN using fitted curve
-    N = 1000
-    E_fine = np.linspace(E_data.min(), E_data.max(), N)
-    interval = 10
-    start =0
-    stop = np.argmin(np.abs(E_fine - 90.0))
+    if args.e_train is not None and args.sigma_train is not None:
+        E_train     = np.load(args.e_train)
+        sigma_train = np.load(args.sigma_train)
+        print(f"Loaded E_train from {args.e_train}, sigma_train from {args.sigma_train}")
+    else:
+        # default training grid
+        N = 1000
+        E_fine = np.linspace(E_data.min(), E_data.max(), N)
+        interval = 10
+        start = 0
+        stop  = np.argmin(np.abs(E_fine - 90.0))
+        E_train     = E_fine[start:stop:interval]
+        sigma_mean  = sigma(E_fine, E0_opt, R0_opt, hbarw_opt)
+        sigma_train = sigma_mean[start:stop:interval]
+        print("Using default E_train and sigma_train")
     
-    E_train = E_fine[start:stop:interval]
-    sigma_mean = sigma(E_fine, E0_opt, R0_opt, hbarw_opt)
-    sigma_train = sigma_mean[start:stop:interval]
+    # Save and Load 
+    if args.out_dir:
+        os.makedirs(args.out_dir, exist_ok=True)
+        base = args.out_dir
+    else:
+        base = os.getcwd()
+    print(base)
+
 
     #  Normalize I/O
     x_scale = np.std(E_train)
@@ -96,8 +108,11 @@ def main(args):
     bnn_est = bnn_est.fit(x_norm, y_norm)
     print("Training time: ", time.time() - st)
 
-    # Save and Load 
-    save_bnn_params(bnn_est.params_, f"bnn_params_{args.model}_{args.likelihood}.pkl")
+    # Save BNN params
+    params_f = os.path.join(base, f"bnn_params_{args.model}_{args.likelihood}.pkl")
+    save_bnn_params(bnn_est.params_, params_f)
+    print(f"Saved BNN params to {params_f}")
+#    save_bnn_params(bnn_est.params_, f"bnn_params_{args.model}_{args.likelihood}.pkl")
 
     #save_bnn_params(bnn_est.params_, 'bnn_params.pkl')
 
@@ -108,8 +123,8 @@ def main(args):
     all_second_derivs = compute_Df(bnn_est, x_pred, scales)
     print("All Derivatives Taken in: ", time.time()-st)
     print("Derivative Shape After Pruning: ", all_second_derivs.shape)
-    derivs = np.array(all_second_derivs)  
-    derivs_fname = f"second_derivs_{args.model}_{args.likelihood}.npy"
+    derivs = np.array(all_second_derivs)
+    derivs_fname = os.path.join(base, f"second_derivs_{args.model}_{args.likelihood}.npy")
     np.save(derivs_fname, derivs)
     print(f"Saved second‐derivatives to {derivs_fname}")
 
@@ -132,8 +147,8 @@ def main(args):
         'std':   df_samples.std().values,
     }, index=['peak_loc', 'peak_height', 'fwhm'])
 
-    samples_fname = f"samples_{args.model}_{args.likelihood}.csv"
-    summary_fname = f"summary_{args.model}_{args.likelihood}.csv"
+    samples_fname = os.path.join(base, f"samples_{args.model}_{args.likelihood}.csv")
+    summary_fname = os.path.join(base, f"summary_{args.model}_{args.likelihood}.csv")
     df_samples.to_csv(samples_fname, index=False)
     summary.to_csv(summary_fname)
     print(f"Saved sample metrics to {samples_fname}")
@@ -160,5 +175,11 @@ if __name__ == "__main__":
                    help="Number of MCMC chains to run")
     p.add_argument("--distributed", type=int, default=1,
                    help="[0,1,2]=[sequential, vectorized, parallel]")
+    p.add_argument("--e_train",       type=str, default=None,
+                   help="Path to a .npy file with your E_train array")
+    p.add_argument("--sigma_train",   type=str, default=None,
+                   help="Path to a .npy file with your sigma_train array")
+    p.add_argument("--out_dir",       type=str, default=None,
+                   help="Base directory to save params, arrays & .csv")
     args = p.parse_args()
     main(args)
