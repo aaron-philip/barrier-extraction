@@ -58,7 +58,7 @@ def plot_gp_with_data(gp, E_plot, E_train, sigma_mu_train, delta_sigma_train):
     plt.tight_layout()
 
 def plot_D_f(E_train, d2_train, E_pred, D_f_sampled_preds, title="Barrier Distribution", 
-             title_fontsize=12, axes_fontsize=10, legend_fontsize=12,ylims=[-1000,1500], save_dir = None, save_extra=None, legend=False):
+             title_fontsize=12, axes_fontsize=10, legend_fontsize=12,xlims=None, ylims=[-1000,1500], save_dir = None, save_extra=None, legend=False):
     plt.figure(figsize=(5,3))
     for p in range(D_f_sampled_preds.shape[0]):
         plt.plot(E_pred, D_f_sampled_preds[p], lw=1, alpha=0.1, color='b')
@@ -69,7 +69,10 @@ def plot_D_f(E_train, d2_train, E_pred, D_f_sampled_preds, title="Barrier Distri
     plt.xlabel(r'$E_{\mathrm{cm}}$ (MeV)', fontsize=axes_fontsize)
     plt.ylabel(r'$D_f(E)$ (mb/MeV)', fontsize=axes_fontsize)
     plt.ylim(ylims)
-    plt.xlim(E_pred[0], E_pred[-1])
+    if xlims:
+        plt.xlim(xlims)
+    else:
+        plt.xlim(E_pred[0], E_pred[-1])
     if legend:
         plt.legend(fontsize=legend_fontsize)
     #plt.tight_layout()
