@@ -5,9 +5,9 @@ models=(sum_of_safe_shallow sum_of_changepoints sum_of_products \
 likelihoods=(normal_likelihood_logistic_noise normal_likelihood_lognormal_noise)
 
 # no spaces around =
-BASEDIR=/mnt/home/philipaa/scratch/barrier-extraction
+BASEDIR=/mnt/home/philipaa/scratch/barrier-extraction/test-4
 
-mkdir -p "${BASEDIR}/logs" "${BASEDIR}/results"
+mkdir -p "${BASEDIR}/logs"
 
 for model in "${models[@]}"; do
   for lik in "${likelihoods[@]}"; do
