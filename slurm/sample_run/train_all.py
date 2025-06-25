@@ -3,11 +3,11 @@ import numpy as np
 import pandas as pd
 import os
 import sys 
-if "../" not in sys.path:
-    sys.path.append("../")
+if "../../" not in sys.path:
+    sys.path.append("../../")
 
-if "../../probability/spinoffs/autobnn" not in sys.path:
-    sys.path.insert(0, "../../probability/spinoffs/autobnn")
+if "../../../probability/spinoffs/autobnn" not in sys.path:
+    sys.path.insert(0, "../../../probability/spinoffs/autobnn")
 
 from scipy.optimize import curve_fit
 from src.wong import sigma
@@ -28,7 +28,7 @@ from src.bnn_utils import compute_Df, save_bnn_params, load_bnn_params
 from src.utils import barrier_dist
 from src.utils import compute_peak_metrics
 
-dirname = "../../barrier-distribution-sample/16O208Pb_exp"
+dirname = "../../../barrier-distribution-sample/16O208Pb_exp"
 expfiles = ['expMort.dat','expDas.dat']
 
 def main(args):
