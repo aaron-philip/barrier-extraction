@@ -11,8 +11,6 @@ echo "Model:      ${MODEL}"
 echo "Likelihood: ${LIKELIHOOD}"
 echo "Base dir:   ${BASEDIR}"
 
-# make per-run results dir
-mkdir -p "${RESULTS_DIR}"
 
 # load your env
 source ~/envs/choose_autobnn.sh

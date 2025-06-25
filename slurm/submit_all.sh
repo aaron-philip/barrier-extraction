@@ -1,7 +1,6 @@
 #!/bin/bash
 models=(sum_of_safe_shallow sum_of_changepoints sum_of_products \
-        sum_of_stumps sum_of_stumps_and_products changepoint_of_safe_products \
-        mlp_depth2 mlp_depth3 mlp_depth4 mlp_depth5)
+        sum_of_stumps sum_of_stumps_and_products changepoint_of_safe_products)
 
 likelihoods=(normal_likelihood_logistic_noise normal_likelihood_lognormal_noise)
 

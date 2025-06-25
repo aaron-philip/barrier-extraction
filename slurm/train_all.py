@@ -35,6 +35,7 @@ def main(args):
      #### SYSTEM ####
     exp = load_experimental_data(dirname, expfiles)
     E_data, Sigma_data, Sigma_err = get_data_arrays(exp[0])
+    
 
 
     # Fit Wong formula to experimental data
@@ -56,19 +57,20 @@ def main(args):
     print(f"  R0    = {R0_opt:.4f} ± {perr[1]:.4f} fm")
     print(f"  hbarw = {hbarw_opt:.4f} ± {perr[2]:.4f} MeV")
 
+    # default training grid
+    N = 1000
+    E_fine = np.linspace(E_data.min(), E_data.max(), N)
+    sigma_mean  = sigma(E_fine, E0_opt, R0_opt, hbarw_opt)
+
     if args.e_train is not None and args.sigma_train is not None:
         E_train     = np.load(args.e_train)
         sigma_train = np.load(args.sigma_train)
         print(f"Loaded E_train from {args.e_train}, sigma_train from {args.sigma_train}")
     else:
-        # default training grid
-        N = 1000
-        E_fine = np.linspace(E_data.min(), E_data.max(), N)
         interval = 10
         start = 0
         stop  = np.argmin(np.abs(E_fine - 90.0))
         E_train     = E_fine[start:stop:interval]
-        sigma_mean  = sigma(E_fine, E0_opt, R0_opt, hbarw_opt)
         sigma_train = sigma_mean[start:stop:interval]
         print("Using default E_train and sigma_train")
     
