@@ -1,0 +1,5 @@
+Running on node: agg-025
+Model:      sum_of_stumps_and_products
+Likelihood: normal_likelihood_lognormal_noise
+Base dir:   /mnt/home/philipaa/scratch/barrier-extraction/E_20_1e-1
+No nvidia-smi command; no GPU detected → forcing CPU

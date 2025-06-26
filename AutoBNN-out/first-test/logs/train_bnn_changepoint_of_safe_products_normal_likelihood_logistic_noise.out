@@ -1,0 +1,24 @@
+Running on node: lac-243
+Model:      changepoint_of_safe_products
+Likelihood: normal_likelihood_logistic_noise
+Base dir:   /mnt/home/philipaa/scratch/barrier-extraction
+No nvidia-smi command; no GPU detected → forcing CPU
+Best-fit parameters:
+  E0    = 73.3846 ± 0.0047 MeV
+  R0    = 10.2260 ± 0.0078 fm
+  hbarw = 4.8410 ± 0.0074 MeV
+Using default E_train and sigma_train
+/mnt/home/philipaa/scratch/barrier-extraction
+Using custom MCMC NUTS
+Training time:  2789.587534427643
+Saved BNN params to /mnt/home/philipaa/scratch/barrier-extraction/bnn_params_changepoint_of_safe_products_normal_likelihood_logistic_noise.pkl
+Taking Derivatives Now
+All Derivatives Taken in:  5.6791253089904785
+Derivative Shape After Pruning:  (100, 149)
+Saved second‐derivatives to /mnt/home/philipaa/scratch/barrier-extraction/second_derivs_changepoint_of_safe_products_normal_likelihood_logistic_noise.npy
+Saved sample metrics to /mnt/home/philipaa/scratch/barrier-extraction/samples_changepoint_of_safe_products_normal_likelihood_logistic_noise.csv
+Saved summary metrics to /mnt/home/philipaa/scratch/barrier-extraction/summary_changepoint_of_safe_products_normal_likelihood_logistic_noise.csv
+                    true         mean          std
+peak_loc       73.370000    69.320000     3.624649
+peak_height  1065.932313  2856.831299  1889.840576
+fwhm            2.400000     2.534000     0.509351

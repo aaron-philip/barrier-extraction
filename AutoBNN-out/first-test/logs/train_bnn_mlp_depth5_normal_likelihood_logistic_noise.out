@@ -1,0 +1,24 @@
+Running on node: lac-260
+Model:      mlp_depth5
+Likelihood: normal_likelihood_logistic_noise
+Base dir:   /mnt/home/philipaa/scratch/barrier-extraction
+No nvidia-smi command; no GPU detected → forcing CPU
+Best-fit parameters:
+  E0    = 73.3846 ± 0.0047 MeV
+  R0    = 10.2260 ± 0.0078 fm
+  hbarw = 4.8410 ± 0.0074 MeV
+Using default E_train and sigma_train
+/mnt/home/philipaa/scratch/barrier-extraction
+Using custom MCMC NUTS
+Training time:  2248.3509092330933
+Saved BNN params to /mnt/home/philipaa/scratch/barrier-extraction/bnn_params_mlp_depth5_normal_likelihood_logistic_noise.pkl
+Taking Derivatives Now
+All Derivatives Taken in:  2.5861666202545166
+Derivative Shape After Pruning:  (100, 149)
+Saved second‐derivatives to /mnt/home/philipaa/scratch/barrier-extraction/second_derivs_mlp_depth5_normal_likelihood_logistic_noise.npy
+Saved sample metrics to /mnt/home/philipaa/scratch/barrier-extraction/samples_mlp_depth5_normal_likelihood_logistic_noise.csv
+Saved summary metrics to /mnt/home/philipaa/scratch/barrier-extraction/summary_mlp_depth5_normal_likelihood_logistic_noise.csv
+                    true       mean       std
+peak_loc       73.370000  74.840000  0.624338
+peak_height  1065.932313  87.931755  2.716018
+fwhm            2.400000   6.864000  0.278350

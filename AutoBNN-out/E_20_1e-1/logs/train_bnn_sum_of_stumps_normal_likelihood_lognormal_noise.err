@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "/mnt/ufs18/rs-021/ascsn/aaron-philip/barrier-extraction/slurm/E_20_1e-1/train_all.py", line 183, in <module>
+    main(args)
+  File "/mnt/ufs18/rs-021/ascsn/aaron-philip/barrier-extraction/slurm/E_20_1e-1/train_all.py", line 35, in main
+    exp = load_experimental_data(dirname, expfiles)
+  File "/mnt/ufs18/rs-021/ascsn/aaron-philip/barrier-extraction/slurm/E_20_1e-1/../../src/io.py", line 12, in load_experimental_data
+    df = pd.read_csv(os.path.join(dirname, file), sep="\s+", names=['Ecm','Sigma','Error'])
+  File "/mnt/home/philipaa/.local/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/mnt/home/philipaa/.local/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/mnt/home/philipaa/.local/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/mnt/home/philipaa/.local/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/mnt/home/philipaa/.local/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '../../barrier-distribution-sample/16O208Pb_exp/expMort.dat'

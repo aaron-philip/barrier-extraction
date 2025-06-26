@@ -1,0 +1,24 @@
+Running on node: amr-248
+Model:      sum_of_stumps_and_products
+Likelihood: normal_likelihood_lognormal_noise
+Base dir:   /mnt/home/philipaa/scratch/barrier-extraction/E_40_1e-2
+No nvidia-smi command; no GPU detected → forcing CPU
+Best-fit parameters:
+  E0    = 73.3846 ± 0.0047 MeV
+  R0    = 10.2260 ± 0.0078 fm
+  hbarw = 4.8410 ± 0.0074 MeV
+Loaded E_train from ../../data/E_tr_40.npy, sigma_train from ../../data/y_tr_noisy_40_1e-2.npy
+/mnt/home/philipaa/scratch/barrier-extraction/E_40_1e-2
+Using custom MCMC NUTS
+Training time:  2004.5393254756927
+Saved BNN params to /mnt/home/philipaa/scratch/barrier-extraction/E_40_1e-2/bnn_params_sum_of_stumps_and_products_normal_likelihood_lognormal_noise.pkl
+Taking Derivatives Now
+All Derivatives Taken in:  5.1326189041137695
+Derivative Shape After Pruning:  (100, 121)
+Saved second‐derivatives to /mnt/home/philipaa/scratch/barrier-extraction/E_40_1e-2/second_derivs_sum_of_stumps_and_products_normal_likelihood_lognormal_noise.npy
+Saved sample metrics to /mnt/home/philipaa/scratch/barrier-extraction/E_40_1e-2/samples_sum_of_stumps_and_products_normal_likelihood_lognormal_noise.csv
+Saved summary metrics to /mnt/home/philipaa/scratch/barrier-extraction/E_40_1e-2/summary_sum_of_stumps_and_products_normal_likelihood_lognormal_noise.csv
+                    true         mean          std
+peak_loc       73.378213    73.038213     3.583182
+peak_height  1065.579631  1265.074341  1727.474854
+fwhm            2.400000     7.154000     3.615774

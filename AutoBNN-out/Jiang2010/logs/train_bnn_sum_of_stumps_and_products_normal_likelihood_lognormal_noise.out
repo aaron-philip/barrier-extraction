@@ -1,0 +1,14 @@
+Running on node: amr-252
+Model:      sum_of_stumps_and_products
+Likelihood: normal_likelihood_lognormal_noise
+Base dir:   /mnt/home/philipaa/scratch/barrier-extraction/Jiang2010
+No nvidia-smi command; no GPU detected → forcing CPU
+Loaded E_train from ../../data/E_Jiangetal.2010.npy, sigma_train from ../../data/sigma_Jiangetal.2010.npy
+/mnt/home/philipaa/scratch/barrier-extraction/Jiang2010
+Using custom MCMC NUTS
+Training time:  2461.3387973308563
+Saved BNN params to /mnt/home/philipaa/scratch/barrier-extraction/Jiang2010/bnn_params_sum_of_stumps_and_products_normal_likelihood_lognormal_noise.pkl
+Taking Derivatives Now
+All Derivatives Taken in:  5.103726387023926
+Derivative Shape After Pruning:  (100, 148)
+Saved second‐derivatives to /mnt/home/philipaa/scratch/barrier-extraction/Jiang2010/second_derivs_sum_of_stumps_and_products_normal_likelihood_lognormal_noise.npy

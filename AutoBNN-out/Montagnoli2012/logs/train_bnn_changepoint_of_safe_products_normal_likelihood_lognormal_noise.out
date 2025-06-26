@@ -1,0 +1,14 @@
+Running on node: agg-042
+Model:      changepoint_of_safe_products
+Likelihood: normal_likelihood_lognormal_noise
+Base dir:   /mnt/home/philipaa/scratch/barrier-extraction/Montagnoli2012
+No nvidia-smi command; no GPU detected → forcing CPU
+Loaded E_train from ../../data/E_Montagnolietal.2012.npy, sigma_train from ../../data/sigma_Montagnolietal.2012.npy
+/mnt/home/philipaa/scratch/barrier-extraction/Montagnoli2012
+Using custom MCMC NUTS
+Training time:  884.7644102573395
+Saved BNN params to /mnt/home/philipaa/scratch/barrier-extraction/Montagnoli2012/bnn_params_changepoint_of_safe_products_normal_likelihood_lognormal_noise.pkl
+Taking Derivatives Now
+All Derivatives Taken in:  4.445105314254761
+Derivative Shape After Pruning:  (100, 128)
+Saved second‐derivatives to /mnt/home/philipaa/scratch/barrier-extraction/Montagnoli2012/second_derivs_changepoint_of_safe_products_normal_likelihood_lognormal_noise.npy
