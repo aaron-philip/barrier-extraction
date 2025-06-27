@@ -57,14 +57,18 @@ def plot_gp_with_data(gp, E_plot, E_train, sigma_mu_train, delta_sigma_train):
     plt.grid(True)
     plt.tight_layout()
 
-def plot_D_f(E_train, d2_train, E_pred, D_f_sampled_preds, title="Barrier Distribution", 
+def plot_D_f(E_train=None, d2_train=None, E_pred=None, D_f_sampled_preds=None, title="Barrier Distribution",
              title_fontsize=12, axes_fontsize=10, legend_fontsize=12,xlims=None, ylims=[-1000,1500], save_dir = None, save_extra=None, legend=False):
     plt.figure(figsize=(5,3))
-    for p in range(D_f_sampled_preds.shape[0]):
-        plt.plot(E_pred, D_f_sampled_preds[p], lw=1, alpha=0.1, color='b')
-    mean_deriv = D_f_sampled_preds.mean(axis=0)
-    plt.plot(E_pred, mean_deriv, lw=1, alpha=0.9, color='b', label=r"Sampled $D_f(E)$")
-    plt.scatter(E_train, d2_train, color='r', s=5, label=r"Training $D_f(E)$")
+    if D_f_sampled_preds is not None and E_pred is not None:
+        for p in range(D_f_sampled_preds.shape[0]):
+            plt.plot(E_pred, D_f_sampled_preds[p], lw=1, alpha=0.1, color='b')
+        mean_deriv = D_f_sampled_preds.mean(axis=0)
+        plt.plot(E_pred, mean_deriv, lw=1, alpha=0.9, color='b', label=r"Sampled $D_f(E)$")
+    
+    if E_train is not None and d2_train is not None:
+        plt.scatter(E_train, d2_train, color='r', s=5, label=r"Training $D_f(E)$")
+    
     plt.title(title, fontsize=title_fontsize)
     plt.xlabel(r'$E_{\mathrm{cm}}$ (MeV)', fontsize=axes_fontsize)
     plt.ylabel(r'$D_f(E)$ (mb/MeV)', fontsize=axes_fontsize)
