@@ -1,4 +1,4 @@
-Running on node: amr-252
+Running on node: agg-031
 Model:      sum_of_products
 Likelihood: normal_likelihood_lognormal_noise
 Base dir:   /mnt/home/philipaa/scratch/barrier-extraction/E_20_1e-1
@@ -10,15 +10,9 @@ Best-fit parameters:
 Loaded E_train from ../../data/E_tr_20.npy, sigma_train from ../../data/y_tr_noisy_20_1e-1.npy
 /mnt/home/philipaa/scratch/barrier-extraction/E_20_1e-1
 Using custom MCMC NUTS
-Training time:  1180.893663406372
+Training time:  1281.7925527095795
 Saved BNN params to /mnt/home/philipaa/scratch/barrier-extraction/E_20_1e-1/bnn_params_sum_of_products_normal_likelihood_lognormal_noise.pkl
 Taking Derivatives Now
-All Derivatives Taken in:  4.971229791641235
-Derivative Shape After Pruning:  (100, 121)
+All Derivatives Taken in:  3.497236967086792
+Derivative Shape After Pruning:  (100, 265)
 Saved second‐derivatives to /mnt/home/philipaa/scratch/barrier-extraction/E_20_1e-1/second_derivs_sum_of_products_normal_likelihood_lognormal_noise.npy
-Saved sample metrics to /mnt/home/philipaa/scratch/barrier-extraction/E_20_1e-1/samples_sum_of_products_normal_likelihood_lognormal_noise.csv
-Saved summary metrics to /mnt/home/philipaa/scratch/barrier-extraction/E_20_1e-1/summary_sum_of_products_normal_likelihood_lognormal_noise.csv
-                    true         mean          std
-peak_loc       73.378213    76.390213     4.688763
-peak_height  1065.579631  1914.774902  1649.576294
-fwhm            2.400000     5.956000     4.454264

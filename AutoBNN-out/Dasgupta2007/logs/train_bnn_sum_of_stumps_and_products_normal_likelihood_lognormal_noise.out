@@ -1,4 +1,4 @@
-Running on node: agg-044
+Running on node: agg-026
 Model:      sum_of_stumps_and_products
 Likelihood: normal_likelihood_lognormal_noise
 Base dir:   /mnt/home/philipaa/scratch/barrier-extraction/Dasgupta2007
@@ -6,9 +6,9 @@ No nvidia-smi command; no GPU detected → forcing CPU
 Loaded E_train from ../../data/E_Dasguptaetal.2007.npy, sigma_train from ../../data/sigma_Dasguptaetal.2007.npy
 /mnt/home/philipaa/scratch/barrier-extraction/Dasgupta2007
 Using custom MCMC NUTS
-Training time:  1657.9795174598694
+Training time:  2029.7285737991333
 Saved BNN params to /mnt/home/philipaa/scratch/barrier-extraction/Dasgupta2007/bnn_params_sum_of_stumps_and_products_normal_likelihood_lognormal_noise.pkl
 Taking Derivatives Now
-All Derivatives Taken in:  3.675182342529297
+All Derivatives Taken in:  3.7571640014648438
 Derivative Shape After Pruning:  (100, 190)
 Saved second‐derivatives to /mnt/home/philipaa/scratch/barrier-extraction/Dasgupta2007/second_derivs_sum_of_stumps_and_products_normal_likelihood_lognormal_noise.npy

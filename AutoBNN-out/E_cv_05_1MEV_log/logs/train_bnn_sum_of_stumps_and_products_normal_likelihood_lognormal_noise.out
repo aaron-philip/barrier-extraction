@@ -1,0 +1,18 @@
+Running on node: agg-017
+Model:      sum_of_stumps_and_products
+Likelihood: normal_likelihood_lognormal_noise
+Base dir:   /mnt/home/philipaa/scratch/barrier-extraction/E_cv_05_1MEV_log
+No nvidia-smi command; no GPU detected → forcing CPU
+Best-fit parameters:
+  E0    = 73.3846 ± 0.0047 MeV
+  R0    = 10.2260 ± 0.0078 fm
+  hbarw = 4.8410 ± 0.0074 MeV
+Loaded E_train from ../../data/E_tr_cv_0.50_1MEV.npy, sigma_train from ../../data/y_tr_noisy_cv_0.50_1MEV.npy
+/mnt/home/philipaa/scratch/barrier-extraction/E_cv_05_1MEV_log
+Using custom MCMC NUTS
+Training time:  2268.14449095726
+Saved BNN params to /mnt/home/philipaa/scratch/barrier-extraction/E_cv_05_1MEV_log/bnn_params_sum_of_stumps_and_products_normal_likelihood_lognormal_noise.pkl
+Taking Derivatives Now
+All Derivatives Taken in:  3.6500325202941895
+Derivative Shape After Pruning:  (100, 263)
+Saved second‐derivatives to /mnt/home/philipaa/scratch/barrier-extraction/E_cv_05_1MEV_log/second_derivs_sum_of_stumps_and_products_normal_likelihood_lognormal_noise.npy

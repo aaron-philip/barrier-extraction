@@ -1,4 +1,4 @@
-Running on node: agg-038
+Running on node: agg-026
 Model:      sum_of_products
 Likelihood: normal_likelihood_logistic_noise
 Base dir:   /mnt/home/philipaa/scratch/barrier-extraction/Aljuwair1984
@@ -6,9 +6,9 @@ No nvidia-smi command; no GPU detected → forcing CPU
 Loaded E_train from ../../data/E_Aljuwairetal.1984.npy, sigma_train from ../../data/sigma_Aljuwairetal.1984.npy
 /mnt/home/philipaa/scratch/barrier-extraction/Aljuwair1984
 Using custom MCMC NUTS
-Training time:  708.1423635482788
+Training time:  576.0557518005371
 Saved BNN params to /mnt/home/philipaa/scratch/barrier-extraction/Aljuwair1984/bnn_params_sum_of_products_normal_likelihood_logistic_noise.pkl
 Taking Derivatives Now
-All Derivatives Taken in:  3.118435859680176
+All Derivatives Taken in:  3.256845235824585
 Derivative Shape After Pruning:  (100, 149)
 Saved second‐derivatives to /mnt/home/philipaa/scratch/barrier-extraction/Aljuwair1984/second_derivs_sum_of_products_normal_likelihood_logistic_noise.npy

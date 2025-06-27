@@ -1,4 +1,4 @@
-Running on node: agg-031
+Running on node: agg-042
 Model:      sum_of_stumps
 Likelihood: normal_likelihood_lognormal_noise
 Base dir:   /mnt/home/philipaa/scratch/barrier-extraction/Morton1999
@@ -6,9 +6,9 @@ No nvidia-smi command; no GPU detected → forcing CPU
 Loaded E_train from ../../data/E_Mortonetal.1999.npy, sigma_train from ../../data/sigma_Mortonetal.1999.npy
 /mnt/home/philipaa/scratch/barrier-extraction/Morton1999
 Using custom MCMC NUTS
-Training time:  229.65748071670532
+Training time:  264.6006371974945
 Saved BNN params to /mnt/home/philipaa/scratch/barrier-extraction/Morton1999/bnn_params_sum_of_stumps_normal_likelihood_lognormal_noise.pkl
 Taking Derivatives Now
-All Derivatives Taken in:  2.8929049968719482
+All Derivatives Taken in:  2.81156325340271
 Derivative Shape After Pruning:  (100, 248)
 Saved second‐derivatives to /mnt/home/philipaa/scratch/barrier-extraction/Morton1999/second_derivs_sum_of_stumps_normal_likelihood_lognormal_noise.npy

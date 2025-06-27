@@ -1,4 +1,4 @@
-Running on node: agg-033
+Running on node: agg-026
 Model:      sum_of_stumps_and_products
 Likelihood: normal_likelihood_lognormal_noise
 Base dir:   /mnt/home/philipaa/scratch/barrier-extraction/E_cv_05_1MEV
@@ -10,9 +10,9 @@ Best-fit parameters:
 Loaded E_train from ../../data/E_tr_cv_0.50_1MEV.npy, sigma_train from ../../data/y_tr_noisy_cv_0.50_1MEV.npy
 /mnt/home/philipaa/scratch/barrier-extraction/E_cv_05_1MEV
 Using custom MCMC NUTS
-Training time:  2334.2512578964233
+Training time:  2246.043129682541
 Saved BNN params to /mnt/home/philipaa/scratch/barrier-extraction/E_cv_05_1MEV/bnn_params_sum_of_stumps_and_products_normal_likelihood_lognormal_noise.pkl
 Taking Derivatives Now
-All Derivatives Taken in:  3.7320475578308105
+All Derivatives Taken in:  3.9066362380981445
 Derivative Shape After Pruning:  (100, 263)
 Saved second‐derivatives to /mnt/home/philipaa/scratch/barrier-extraction/E_cv_05_1MEV/second_derivs_sum_of_stumps_and_products_normal_likelihood_lognormal_noise.npy

@@ -1,4 +1,4 @@
-Running on node: agg-033
+Running on node: agg-022
 Model:      changepoint_of_safe_products
 Likelihood: normal_likelihood_lognormal_noise
 Base dir:   /mnt/home/philipaa/scratch/barrier-extraction/Trotta2001
@@ -6,9 +6,9 @@ No nvidia-smi command; no GPU detected → forcing CPU
 Loaded E_train from ../../data/E_Trottaetal.2001.npy, sigma_train from ../../data/sigma_Trottaetal.2001.npy
 /mnt/home/philipaa/scratch/barrier-extraction/Trotta2001
 Using custom MCMC NUTS
-Training time:  1719.466014623642
+Training time:  1169.3502597808838
 Saved BNN params to /mnt/home/philipaa/scratch/barrier-extraction/Trotta2001/bnn_params_changepoint_of_safe_products_normal_likelihood_lognormal_noise.pkl
 Taking Derivatives Now
-All Derivatives Taken in:  4.677775859832764
+All Derivatives Taken in:  4.504751682281494
 Derivative Shape After Pruning:  (100, 150)
 Saved second‐derivatives to /mnt/home/philipaa/scratch/barrier-extraction/Trotta2001/second_derivs_changepoint_of_safe_products_normal_likelihood_lognormal_noise.npy
