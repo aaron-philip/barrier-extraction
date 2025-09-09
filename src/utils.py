@@ -113,7 +113,93 @@ def point_diff(x,y,std,dE=1):
     
     return der, der_err
 
+import numpy as np
+from scipy.interpolate import interp1d
 
+def compute_peak_metrics(
+    x: np.ndarray,
+    y: np.ndarray,
+    x_min: float = 65.0,
+    x_max: float = 80.0,
+    kind: str = "cubic",           # 'linear', 'quadratic', or 'cubic'
+    upsample_factor: float = 10.0  # how dense to resample
+):
+    """
+    Returns (peak_loc, peak_height, fwhm) by:
+      1) restricting to [x_min, x_max],
+      2) interpolating with scipy.interpolate.interp1d,
+      3) evaluating on a dense grid,
+      4) computing peak and FWHM on the interpolated curve.
+    """
+    x = np.asarray(x)
+    y = np.asarray(y)
+
+    # restrict to subrange
+    mask = np.ones_like(x, dtype=bool)
+    if x_min is not None:
+        mask &= (x >= x_min)
+    if x_max is not None:
+        mask &= (x <= x_max)
+    x_sub, y_sub = x[mask], y[mask]
+
+    if x_sub.size < 2:
+        return np.nan, np.nan, np.nan
+
+    # sort by x
+    order = np.argsort(x_sub)
+    x_sub, y_sub = x_sub[order], y_sub[order]
+
+    # interpolation function
+    f = interp1d(x_sub, y_sub, kind=kind, bounds_error=False, fill_value="extrapolate")
+
+    # dense grid for evaluation
+    xmin, xmax = float(x_sub[0]), float(x_sub[-1])
+    n_query = max(int(np.ceil(upsample_factor * len(x_sub))), 200)
+    Xq = np.linspace(xmin, xmax, n_query)
+    Yq = f(Xq)
+
+    # peak
+    i = int(np.argmax(Yq))
+    peak_loc = float(Xq[i])
+    peak_height = float(Yq[i])
+
+    # FWHM
+    half = 0.5 * peak_height
+    z = Yq - half
+    sign = np.signbit(z)
+    cross_idxs = np.where(sign[:-1] != sign[1:])[0]
+
+    crossings = []
+    for k in cross_idxs:
+        x0, x1 = Xq[k], Xq[k+1]
+        z0, z1 = z[k], z[k+1]
+        if z1 != z0:
+            x_cross = x0 - z0 * (x1 - x0) / (z1 - z0)
+            crossings.append(x_cross)
+
+    if len(crossings) >= 2:
+        fwhm = float(np.max(crossings) - np.min(crossings))
+    else:
+        fwhm = np.nan
+
+    return peak_loc, peak_height, fwhm
+
+def summarize(err):
+    if err.size == 0:
+        return dict(n=0, mean=np.nan, std=np.nan, median=np.nan, MAE=np.nan, RMSE=np.nan,
+                    min=np.nan, max=np.nan)
+    return dict(
+        n      = int(err.size),
+        mean   = float(np.mean(err)),
+        std    = float(np.std(err, ddof=1)) if err.size > 1 else 0.0,
+        median = float(np.median(err)),
+        MAE    = float(np.mean(np.abs(err))),
+        RMSE   = float(np.sqrt(np.mean(err**2))),
+        min    = float(np.min(err)),
+        max    = float(np.max(err)),
+    )
+
+"""
 def compute_peak_metrics(
     x: np.ndarray,
     y: np.ndarray,
@@ -121,12 +207,12 @@ def compute_peak_metrics(
     x_max: float = 80.0
 ):
     """
-    Given arrays x (shape [n,]) and y (shape [n,]), find within [x_min, x_max]:
+"""   Given arrays x (shape [n,]) and y (shape [n,]), find within [x_min, x_max]:
       - peak_loc: x at max(y)
       - peak_height: max(y)
       - fwhm: full width at half maximum
-    Returns (peak_loc, peak_height, fwhm).
-    """
+    Returns (peak_loc, peak_height, fwhm)."""
+"""
     x = np.asarray(x)
     y = np.asarray(y)
     # restrict to subrange
@@ -160,3 +246,4 @@ def compute_peak_metrics(
     return peak_loc, peak_height, fwhm
 
 
+"""
