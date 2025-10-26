@@ -4,6 +4,11 @@ import jax.numpy as jnp
 import pandas as pd
 import os
 
+
+import numpy as np
+from scipy.interpolate import interp1d
+
+
 def p_fus_flat(ecm,L,bL):
     eps=0.4
     return np.exp((ecm-bL)/eps)/(1+np.exp((ecm-bL)/eps))
@@ -113,8 +118,6 @@ def point_diff(x,y,std,dE=1):
     
     return der, der_err
 
-import numpy as np
-from scipy.interpolate import interp1d
 
 def compute_peak_metrics(
     x: np.ndarray,
@@ -198,6 +201,91 @@ def summarize(err):
         min    = float(np.min(err)),
         max    = float(np.max(err)),
     )
+
+
+def compute_all_metrics(true_curve, pred_curve, E, x_min=None, x_max=None):
+    """
+    Compute error metrics comparing a predicted barrier distribution to the true barrier distribution.
+    - L1: mean absolute error over the entire function.
+    - L2: root mean squared error over the entire function.
+    - peak_loc_resid: difference in barrier peak location (predicted - true).
+    - peak_height_resid: difference in barrier peak height (predicted - true).
+    - fwhm_resid: difference in barrier distribution FWHM (predicted - true).
+    The comparison can be restricted to [x_min, x_max] (energy range) for peak calculations if specified.
+    Returns a dictionary of metrics.
+    """
+    true_curve = np.asarray(true_curve)
+    pred_curve = np.asarray(pred_curve)
+    err = pred_curve - true_curve
+    # L1 and L2 errors
+    L1 = float(np.mean(np.abs(err)))
+    L2 = float(np.sqrt(np.mean(err**2)))
+    # Restrict to specified range for peak metrics (defaults to full range if not given)
+    mask = np.ones_like(E, dtype=bool)
+    if x_min is not None:
+        mask &= (E >= x_min)
+    if x_max is not None:
+        mask &= (E <= x_max)
+    E_masked = E[mask]
+    if E_masked.size < 2:
+        # Not enough points in range to compute peak metrics
+        return {
+            "L1": L1,
+            "L2": L2,
+            "peak_loc_resid": np.nan,
+            "peak_height_resid": np.nan,
+            "fwhm_resid": np.nan
+        }
+    # Sort by energy (just to be safe in case E is not sorted)
+    order = np.argsort(E_masked)
+    E_masked = E_masked[order]
+    true_masked = true_curve[mask][order]
+    pred_masked = pred_curve[mask][order]
+    # Interpolate each curve on a dense grid for peak finding
+    def get_peak_metrics(E_arr, Y_arr):
+        f = interp1d(E_arr, Y_arr, kind='cubic', bounds_error=False, fill_value="extrapolate")
+        Nq = max(int(np.ceil(10 * len(E_arr))), 200)  # upsample factor 10 or at least 200 points
+        Xq = np.linspace(E_arr[0], E_arr[-1], Nq)
+        Yq = f(Xq)
+        # Peak location and height
+        i_peak = int(np.argmax(Yq))
+        peak_loc = float(Xq[i_peak])
+        peak_height = float(Yq[i_peak])
+        # Full Width at Half Maximum (FWHM)
+        half = 0.5 * peak_height
+        z = Yq - half
+        sign = np.signbit(z)
+        cross_idxs = np.where(sign[:-1] != sign[1:])[0]
+        crossings = []
+        for k in cross_idxs:
+            # Linear interpolation to find crossing point where Y = half
+            x0, x1 = Xq[k], Xq[k+1]
+            z0, z1 = z[k], z[k+1]
+            if z1 != z0:
+                x_cross = x0 - z0 * (x1 - x0) / (z1 - z0)
+                crossings.append(x_cross)
+        if len(crossings) >= 2:
+            fwhm_val = float(np.max(crossings) - np.min(crossings))
+        else:
+            fwhm_val = np.nan
+        return peak_loc, peak_height, fwhm_val
+    true_peak_loc, true_peak_height, true_fwhm = get_peak_metrics(E_masked, true_masked)
+    pred_peak_loc, pred_peak_height, pred_fwhm = get_peak_metrics(E_masked, pred_masked)
+    # Compute residuals (predicted minus true)
+    peak_loc_resid = float(pred_peak_loc - true_peak_loc)
+    peak_height_resid = float(pred_peak_height - true_peak_height)
+    fwhm_resid = float(pred_fwhm - true_fwhm) if (not np.isnan(pred_fwhm) and not np.isnan(true_fwhm)) else np.nan
+    return {
+        "L1": L1,
+        "L2": L2,
+        "peak_loc_resid": peak_loc_resid,
+        "peak_height_resid": peak_height_resid,
+        "fwhm_resid": fwhm_resid
+    }
+
+
+
+
 
 """
 def compute_peak_metrics(
