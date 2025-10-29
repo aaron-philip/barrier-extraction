@@ -1,18 +1,77 @@
 import numpy as np
 import os
 import argparse
+import numpy as np
+import os
+import sys
+if "../src" not in sys.path:
+    sys.path.append("../src")  
 
-def generate_datasets(n_curves, n_noise, noise_ratio, dev_points, n_points, out_file, seed=None):
+from wong import sigma
+
+def generate_datasets(n_curves, n_noise, noise_ratio, cv, mean_spacing, out_file, seed=None):
     """
     Generate synthetic Wong datasets and save all results in a single .npz file.
 
-    Arrays will be shaped as:
-      - E:        (N, n_points)        sampled energy grids
-      - Sigma:    (N, n_points)        noisy cross sections
-      - Sigma_err:(N, n_points)        per-point errors
-      - params:   (N, 3)               true parameters [E0, R0, hbarw] for each curve
-    where N = n_curves * n_noise.
+    Each dataset corresponds to a simulated fusion excitation function sampled
+    on an energy grid with a given mean spacing and optional irregularity. 
+    Random noise is added to emulate experimental uncertainties.
+
+    All generated datasets for a given experiment are saved together in a single
+    `.npz` file containing arrays for energies, cross sections, uncertainties,
+    and true parameters.
+
+    Parameters
+    ----------
+    n_curves : int
+        Number of distinct underlying Wong parameter sets to generate.
+        Each curve corresponds to a different combination of (E0, R0, ħω).
+
+    n_noise : int
+        Number of noisy realizations (replicates) to generate for each curve.
+        Each replicate shares the same true parameters but has independent
+        noise and jitter in the energy grid.
+
+    noise_ratio : float
+        Relative standard deviation of the Gaussian noise applied to the 
+        cross section at each energy point. For example, 
+        `noise_ratio = 0.01` corresponds to 1% measurement noise.
+
+    cv : float
+        Coefficient of variation (fractional standard deviation) for the
+        irregularity of the energy grid spacing. A value of:
+          - `cv = 0.0` → perfectly uniform grid
+          - `cv = 0.25` → energy step sizes fluctuate by 25% of mean spacing
+        The spacing between consecutive energy points is sampled from a normal
+        distribution: `ΔE ~ N(mean_spacing, (cv * mean_spacing)^2)`.
+
+    mean_spacing : float
+        Average energy step size in MeV between consecutive points on the grid.
+        Together with the sampled (E0, R0, ħω) values, this determines how many
+        energy points are used to cover the interval `[E_min, E_max]`, where:
+            E_min = max(0, E0_true - 10)
+            E_max = E0_true + 20
+        Smaller values correspond to higher experimental resolution.
+
+    out_file : str
+        Full path to the output `.npz` file. The file will contain the arrays:
+            - `E`          : list of energy grids (object array)
+            - `Sigma`      : list of noisy cross sections
+            - `Sigma_err`  : list of per-point noise levels
+            - `params`     : array of true parameters [E0, R0, ħω]
+            - `noise_ratio`, `cv`, `mean_spacing`
+
+    seed : int, optional
+        Random seed for reproducibility. If None, the global NumPy RNG state is used.
+
+
+    Saves:
+      - E:  energy grids
+      - Sigma:   noisy cross sections
+      - Sigma_err_std:   per-point error standard deviation
+      - params:        true parameters [E0, R0, ħω]
     """
+
     if seed is not None:
         np.random.seed(seed)
 
@@ -21,77 +80,65 @@ def generate_datasets(n_curves, n_noise, noise_ratio, dev_points, n_points, out_
     R0_range = (8.0, 15.0)
     hbarw_range = (2.0, 8.0)
 
-    N = n_curves * n_noise
+    datasets = []
+    params_list = []
 
-    # Containers
-    all_E = np.zeros((N, n_points))
-    all_Sigma = np.zeros((N, n_points))
-    all_Sigma_err = np.zeros((N, n_points))
-    all_params = np.zeros((N, 3))
-
-    idx = 0
     for ci in range(n_curves):
-        # Sample parameters
+        # Sample true parameters
         E0_true = np.random.uniform(*E0_range)
         R0_true = np.random.uniform(*R0_range)
         hbarw_true = np.random.uniform(*hbarw_range)
 
-        # Base energy grid
-        E_min = max(0.0, E0_true - 10.0)
+        E_min = E0_true - 10.0
         E_max = E0_true + 20.0
-        if E_max <= E_min:
-            E_max = E_min + 20.0
-        E_base = np.linspace(E_min, E_max, n_points)
+
+        # Determine how many points are needed to cover the range
+        n_points_est = int(np.ceil((E_max - E_min) / mean_spacing)) + 1
 
         for ni in range(n_noise):
-            # Jitter grid
-            if dev_points > 0:
-                E_jittered = E_base.copy()
-                avg_spacing = (E_max - E_min) / (n_points - 1)
-                jitter_scale = dev_points * avg_spacing
-                for k in range(1, n_points-1):
-                    E_jittered[k] += np.random.normal(0, jitter_scale)
-                E_jittered = np.clip(E_jittered, E_min, E_max)
-                E_jittered[0], E_jittered[-1] = E_min, E_max
-                E_jittered.sort()
-                E_data = E_jittered
+            # === Construct irregular grid ===
+            if cv > 0.0:
+                # Random spacings from normal(mean, cv*mean)
+                spacings = np.random.normal(mean_spacing, cv * mean_spacing, n_points_est)
+                spacings = np.clip(spacings, 1e-3, None)
+                E_data = E_min + np.cumsum(spacings)
+                E_data = E_data[E_data <= E_max]
+                # Ensure first/last coverage
+                if E_data[-1] < E_max:
+                    E_data = np.append(E_data, E_max)
             else:
-                E_data = E_base
+                E_data = np.arange(E_min, E_max + mean_spacing / 2, mean_spacing)
 
-            # Wong cross section
-            coef = (np.pi * (R0_true**2) * hbarw_true) / (2 * np.maximum(E_data, 1e-6))
-            Sigma_true = coef * np.log(1.0 + np.exp((2 * np.pi / max(hbarw_true, 1e-6)) * (E_data - E0_true)))
+            # Guarantee unique sorted grid
+            E_data = np.unique(E_data)
 
-            # Noise
-            Sigma_err = noise_ratio * Sigma_true
-            Sigma_err = np.where(Sigma_err == 0, noise_ratio * 1.0, Sigma_err)
-            noise = np.random.normal(0.0, Sigma_err)
+            # === Wong formula ===
+            Sigma_true = sigma(E_data, E0_true, R0_true, hbarw_true)
+
+            # === Add noise ===
+            Sigma_err_std = np.abs(noise_ratio * Sigma_true)
+            noise = np.random.normal(0.0, Sigma_err_std)
             Sigma_meas = Sigma_true + noise
 
-            # Store
-            all_E[idx] = E_data
-            all_Sigma[idx] = Sigma_meas
-            all_Sigma_err[idx] = Sigma_err
-            all_params[idx] = [E0_true, R0_true, hbarw_true]
-            idx += 1
+            datasets.append((E_data, Sigma_meas, Sigma_err_std, Sigma_true))
+            params_list.append([E0_true, R0_true, hbarw_true])
 
-    # Save once
-    np.savez(out_file, E=all_E, Sigma=all_Sigma, Sigma_err=all_Sigma_err, params=all_params,
-             noise_ratio=noise_ratio, dev_points=dev_points)
+    # Since grids can vary in length, we store as object arrays
+    
+    E_all = np.array([d[0] for d in datasets], dtype=object)
+    Sigma_all = np.array([d[1] for d in datasets], dtype=object)
+    Sigma_err_all = np.array([d[2] for d in datasets], dtype=object)
+    Sigma_true_all = np.array([d[3] for d in datasets], dtype=object)
+    params_all = np.array(params_list)
 
-    print(f"Saved {N} datasets in one file: {out_file}")
+    np.savez(out_file,
+             E=E_all,
+             Sigma=Sigma_all,
+             Sigma_err=Sigma_err_all,
+             Sigma_true=Sigma_true_all,
+             params=params_all,
+             noise_ratio=noise_ratio,
+             cv=cv,
+             mean_spacing=mean_spacing)
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--n_curves", type=int, required=True)
-    parser.add_argument("--n_noise", type=int, required=True)
-    parser.add_argument("--noise_ratio", type=float, required=True)
-    parser.add_argument("--dev_points", type=float, default=0.0)
-    parser.add_argument("--n_points", type=int, required=True)
-    parser.add_argument("--out_file", type=str, required=True, help="Path to output .npz file")
-    parser.add_argument("--seed", type=int, default=None)
-    args = parser.parse_args()
-
-    generate_datasets(args.n_curves, args.n_noise, args.noise_ratio,
-                      args.dev_points, args.n_points, args.out_file, seed=args.seed)
+    print(f"Saved {len(datasets)} datasets to {out_file}")

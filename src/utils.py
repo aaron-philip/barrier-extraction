@@ -3,6 +3,8 @@ import findiff as fd
 import jax.numpy as jnp
 import pandas as pd
 import os
+import sys
+import logging
 
 
 import numpy as np
@@ -203,7 +205,7 @@ def summarize(err):
     )
 
 
-def compute_all_metrics(true_curve, pred_curve, E, x_min=None, x_max=None):
+def compute_all_metrics(E, pred_curve, true_curve, x_min=None, x_max=None):
     """
     Compute error metrics comparing a predicted barrier distribution to the true barrier distribution.
     - L1: mean absolute error over the entire function.
@@ -242,8 +244,10 @@ def compute_all_metrics(true_curve, pred_curve, E, x_min=None, x_max=None):
     true_masked = true_curve[mask][order]
     pred_masked = pred_curve[mask][order]
     # Interpolate each curve on a dense grid for peak finding
+   
     def get_peak_metrics(E_arr, Y_arr):
         f = interp1d(E_arr, Y_arr, kind='cubic', bounds_error=False, fill_value="extrapolate")
+        
         Nq = max(int(np.ceil(10 * len(E_arr))), 200)  # upsample factor 10 or at least 200 points
         Xq = np.linspace(E_arr[0], E_arr[-1], Nq)
         Yq = f(Xq)
@@ -284,54 +288,69 @@ def compute_all_metrics(true_curve, pred_curve, E, x_min=None, x_max=None):
     }
 
 
-
-
-
-"""
-def compute_peak_metrics(
-    x: np.ndarray,
-    y: np.ndarray,
-    x_min: float = 65.0,
-    x_max: float = 80.0
+def setup_logger(
+    name=None,
+    dataset_path=None,
+    log_dir="/mnt/home/philipaa/scratch/barrier-paper-logs",
+    tag=None,
+    level=logging.INFO,
 ):
     """
-"""   Given arrays x (shape [n,]) and y (shape [n,]), find within [x_min, x_max]:
-      - peak_loc: x at max(y)
-      - peak_height: max(y)
-      - fwhm: full width at half maximum
-    Returns (peak_loc, peak_height, fwhm)."""
-"""
-    x = np.asarray(x)
-    y = np.asarray(y)
-    # restrict to subrange
-    if x_min is not None or x_max is not None:
-        mask = np.ones_like(x, dtype=bool)
-        if x_min is not None:
-            mask &= (x >= x_min)
-        if x_max is not None:
-            mask &= (x <= x_max)
-        x_sub = x[mask]
-        y_sub = y[mask]
-    else:
-        x_sub, y_sub = x, y
+    General-purpose logger setup for SLURM or local runs.
 
-    if x_sub.size == 0:
-        return np.nan, np.nan, np.nan
+    Parameters
+    ----------
+    name : str, optional
+        A base name for the logger (e.g., 'train_bnn', 'train_gp').
+        If None, derived from dataset basename.
+    dataset_path : str, optional
+        Path to dataset file (used to generate unique log filename).
+    log_dir : str, default
+        Directory where log files are stored.
+    tag : str, optional
+        Optional short string to prefix the log file (e.g. 'bnn', 'gp', 'wong').
+    level : logging level, default=logging.INFO
+        Minimum log level.
 
-    # find peak within subrange
-    idx = np.argmax(y_sub)
-    peak_loc    = x_sub[idx]
-    peak_height = y_sub[idx]
-    half        = peak_height / 2.0
+    Returns
+    -------
+    logger : logging.Logger
+        Configured logger that writes to both file and stdout.
+    """
 
-    # FWHM on subrange
-    inds = np.where(y_sub >= half)[0]
-    if inds.size >= 2:
-        fwhm = x_sub[inds[-1]] - x_sub[inds[0]]
-    else:
-        fwhm = np.nan
+    os.makedirs(log_dir, exist_ok=True)
 
-    return peak_loc, peak_height, fwhm
+    # === Determine unique identifiers ===
+    base = "process"
+    if dataset_path:
+        base = os.path.basename(dataset_path).replace(".npz", "")
+    if name:
+        base = f"{name}_{base}"
 
+    task_id = os.environ.get("SLURM_ARRAY_TASK_ID", os.getpid())
+    prefix = f"{tag}_" if tag else ""
 
-"""
+    logfile = os.path.join(log_dir, f"{prefix}{base}_task{task_id}.log")
+
+    # === Configure logger ===
+    logger = logging.getLogger(f"{prefix}{base}_{task_id}")
+    logger.setLevel(level)
+    fmt = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    # === File + stream handlers ===
+    fh = logging.FileHandler(logfile)
+    fh.setFormatter(fmt)
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setFormatter(fmt)
+
+    # Prevent multiple handlers on re-import
+    if not logger.handlers:
+        logger.addHandler(fh)
+        logger.addHandler(sh)
+
+    logger.propagate = False
+    logger.info(f"Logger initialized -> {logfile}")
+    return logger
