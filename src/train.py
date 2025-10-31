@@ -9,120 +9,94 @@ if "../src" not in sys.path:
     sys.path.append("../src")  
 
 from bnn_utils import compute_Df
-from utils import barrier_dist, compute_all_metrics
+from utils import compute_all_metrics, barrier_dist
 from wong import sigma
 
-def fit_wong(E, Sigma, Sigma_err, true_params, levels=(0.5, 0.68, 0.9, 0.95), n_restarts=5, verbose=False):
+def fit_wong(
+    E, Sigma, Sigma_err, true_params,
+    levels=(0.5, 0.68, 0.9, 0.95),
+    n_restarts=5, n_samples=200, verbose=False
+):
     """
-    Fit Wong parameters to noisy data, and compute metrics + empirical coverage
-    for both cross sections σ(E) and barrier distributions D(E) = d²(Eσ)/dE².
+    Fit Wong parameters to noisy data with multiple restarts, then
+    draw posterior samples for sigma(E), compute metrics using compute_all_metrics(),
+    and precompute uncertainty bands at each level.
     """
-
-    if sigma is None:
-        raise RuntimeError("Wong sigma() not found")
-
-    # === Fit parameters ===
-    init_guess = [50.0, 13.0, 6.0]
-    bounds = ([40.0, 6, 1], [100, 16, 10])
-
+    bounds = ([40.0, 6.0, 1.0], [100.0, 16.0, 10.0])
     best_popt, best_pcov, best_chi2 = None, None, np.inf
 
+    # --- Try multiple restarts ---
     for trial in range(n_restarts):
-        # Randomize initial guess within bounds
-        p0 = [
-            np.random.uniform(50, 90),   # E0
-            np.random.uniform(8, 14),    # R0
-            np.random.uniform(2, 8)      # hw
-        ]
-
+        p0 = [np.random.uniform(50, 90),
+              np.random.uniform(8, 14),
+              np.random.uniform(2, 8)]
         try:
             popt, pcov = curve_fit(
                 sigma, E, Sigma, p0=p0,
-                sigma=Sigma_err, absolute_sigma=True, bounds=bounds,
-                maxfev=10_000
+                sigma=Sigma_err, absolute_sigma=True,
+                bounds=bounds, maxfev=10_000
             )
-            y_fit = sigma(E, *popt)
-            chi2 = np.sum(((Sigma - y_fit) / Sigma_err)**2)
+            resid = (Sigma - sigma(E, *popt)) / np.maximum(Sigma_err, 1e-12)
+            chi2 = np.sum(resid**2)
             if chi2 < best_chi2:
                 best_popt, best_pcov, best_chi2 = popt, pcov, chi2
         except Exception as e:
             if verbose:
-                print(f"[Restart {trial}] Fit failed from {p0}: {e}")
-            continue
+                print(f"[Restart {trial}] failed: {e}")
 
-    # If all failed, bail out gracefully
     if best_popt is None:
-        if verbose:
-            print("[WARN] All restarts failed — returning NaNs")
         return {
             "E0_fit": np.nan, "R0_fit": np.nan, "hw_fit": np.nan,
-            "sigma_L1": np.nan, "sigma_L2": np.nan,
-            "barrier_L1": np.nan, "barrier_L2": np.nan,
+            "chi2": np.nan, "n_restarts": n_restarts, "n_samples": n_samples
         }
 
-    # Unpack best parameters
-    E0_fit, R0_fit, hw_fit = best_popt
-    E0_fit, R0_fit, hw_fit = popt
+    # --- Mean prediction ---
     x_pred = np.arange(max(0, E.min() - 5), E.max() + 5, 0.2)
-    y_pred = sigma(x_pred, E0_fit, R0_fit, hw_fit)
+    y_mean = sigma(x_pred, *best_popt)
 
-    # === Predictive uncertainty (Jacobian-based) ===
-    J = np.zeros((len(x_pred), len(popt)))
-    eps = 1e-5
-    for i in range(len(popt)):
-        dp = np.zeros_like(popt)
-        dp[i] = eps
-        J[:, i] = (sigma(x_pred, *(popt + dp)) - sigma(x_pred, *(popt - dp))) / (2 * eps)
-    pred_var = np.einsum("ij,jk,ik->i", J, pcov, J)
-    pred_std = np.sqrt(np.maximum(pred_var, 0))
+    # --- Draw posterior parameter samples ---
+    samples = np.random.multivariate_normal(best_popt, best_pcov, n_samples)
+    y_samples = np.array([sigma(x_pred, *p) for p in samples])
 
-    # === True reference ===
-    if true_params is not None:
-        y_true = sigma(x_pred, *true_params)
-    else:
-        y_true = np.full_like(y_pred, np.nan)
+    # --- True curve ---
+    y_true = sigma(x_pred, *true_params) if true_params is not None else np.nan * y_mean
 
-    # === Compute barrier distributions ===
-    D_pred = barrier_dist(x_pred, y_pred)
+    # --- Compute metrics using existing function (unchanged) ---
+    metrics = compute_all_metrics(x_pred, y_true, y_mean, y_samples, levels=levels)
+
+    # --- Compute uncertainty bands (percentiles) for σ and D ---
+    def percentile_bands(samples, levels):
+        bands = {}
+        for alpha in levels:
+            lower = np.percentile(samples, (1 - alpha) / 2 * 100, axis=0)
+            upper = np.percentile(samples, (1 + alpha) / 2 * 100, axis=0)
+            bands[f"lower_{int(alpha*100)}"] = lower
+            bands[f"upper_{int(alpha*100)}"] = upper
+        return bands
+
+    sigma_bands = percentile_bands(y_samples, levels)
+
+    # Barrier distributions from samples
+    D_samples = np.array([barrier_dist(x_pred, y) for y in y_samples])
+    D_mean = barrier_dist(x_pred, y_mean)
     D_true = barrier_dist(x_pred, y_true)
+    barrier_bands = percentile_bands(D_samples, levels)
 
-    # === Approximate propagated uncertainty in barrier space ===
-    # Forward finite difference of ±pred_std in σ(E)
-    D_up = barrier_dist(x_pred, y_pred + pred_std)
-    D_down = barrier_dist(x_pred, y_pred - pred_std)
-    D_std = 0.5 * np.abs(D_up - D_down)  # rough linearized estimate
-
-    # === Standard metrics ===
-    sigma_metrics = compute_all_metrics(x_pred, y_pred, y_true)
-    sigma_metrics = {f"sigma_{k}": v for k, v in sigma_metrics.items()}
-
-    barrier_metrics = compute_all_metrics(x_pred, D_pred, D_true)
-    barrier_metrics = {f"barrier_{k}": v for k, v in barrier_metrics.items()}
-
-    # === Empirical coverage (σ-space) ===
-    coverages = {}
-    for alpha in levels:
-        z = scipy.stats.norm.ppf(0.5 + alpha / 2.0)
-        lower, upper = y_pred - z * pred_std, y_pred + z * pred_std
-        inside = (y_true >= lower) & (y_true <= upper)
-        coverages[f"sigma_emp_cov_{int(alpha*100)}"] = np.mean(inside)
-
-    # === Empirical coverage (barrier-space) ===
-    for alpha in levels:
-        z = scipy.stats.norm.ppf(0.5 + alpha / 2.0)
-        lower, upper = D_pred - z * D_std, D_pred + z * D_std
-        inside = (D_true >= lower) & (D_true <= upper)
-        coverages[f"barrier_emp_cov_{int(alpha*100)}"] = np.mean(inside)
-
-    # === Combine all ===
-    metrics = {}
-    metrics.update(sigma_metrics)
-    metrics.update(barrier_metrics)
-    metrics.update(coverages)
+    # --- Attach metadata and bands ---
     metrics.update({
-        "E0_fit": E0_fit,
-        "R0_fit": R0_fit,
-        "hw_fit": hw_fit
+        "E0_fit": best_popt[0],
+        "R0_fit": best_popt[1],
+        "hw_fit": best_popt[2],
+        "chi2": best_chi2,
+        "n_restarts": n_restarts,
+        "n_samples": n_samples,
+        "x_pred": x_pred,
+        "y_mean": y_mean,
+        "y_true": y_true,
+        "D_mean": D_mean,
+        "D_true": D_true,
+        "sigma_bands": sigma_bands,
+        "barrier_bands": barrier_bands
     })
 
     return metrics

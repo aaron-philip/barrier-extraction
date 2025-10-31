@@ -204,89 +204,121 @@ def summarize(err):
         max    = float(np.max(err)),
     )
 
+def compute_all_metrics(E, y_true, y_mean, y_samples, levels=(0.5, 0.68, 0.9, 0.95),
+                        x_min=None, x_max=None):
+    """
+    Compute all cross-section and barrier-distribution metrics.
 
-def compute_all_metrics(E, pred_curve, true_curve, x_min=None, x_max=None):
+    Parameters
+    ----------
+    E : array (n_E,)
+        Energy grid.
+    y_true : array (n_E,)
+        True sigma(E) values.
+    y_mean : array (n_E,)
+        Mean predicted sigma(E).
+    y_samples : array (n_samples, n_E)
+        Sampled sigma(E) predictions from posterior or MC draws.
+    levels : sequence of floats
+        Confidence levels for empirical coverage.
+    x_min, x_max : floats, optional
+        Range restriction for peak metrics.
+
+    Returns
+    -------
+    dict
+        Dictionary with sigma-space and barrier-space metrics plus empirical coverages.
     """
-    Compute error metrics comparing a predicted barrier distribution to the true barrier distribution.
-    - L1: mean absolute error over the entire function.
-    - L2: root mean squared error over the entire function.
-    - peak_loc_resid: difference in barrier peak location (predicted - true).
-    - peak_height_resid: difference in barrier peak height (predicted - true).
-    - fwhm_resid: difference in barrier distribution FWHM (predicted - true).
-    The comparison can be restricted to [x_min, x_max] (energy range) for peak calculations if specified.
-    Returns a dictionary of metrics.
-    """
-    true_curve = np.asarray(true_curve)
-    pred_curve = np.asarray(pred_curve)
-    err = pred_curve - true_curve
-    # L1 and L2 errors
+    # --------- pointwise errors in σ-space ---------
+    err = y_mean - y_true
     L1 = float(np.mean(np.abs(err)))
     L2 = float(np.sqrt(np.mean(err**2)))
-    # Restrict to specified range for peak metrics (defaults to full range if not given)
+
+    # optional domain restriction
     mask = np.ones_like(E, dtype=bool)
     if x_min is not None:
         mask &= (E >= x_min)
     if x_max is not None:
         mask &= (E <= x_max)
-    E_masked = E[mask]
-    if E_masked.size < 2:
-        # Not enough points in range to compute peak metrics
-        return {
-            "L1": L1,
-            "L2": L2,
-            "peak_loc_resid": np.nan,
-            "peak_height_resid": np.nan,
-            "fwhm_resid": np.nan
-        }
-    # Sort by energy (just to be safe in case E is not sorted)
-    order = np.argsort(E_masked)
-    E_masked = E_masked[order]
-    true_masked = true_curve[mask][order]
-    pred_masked = pred_curve[mask][order]
-    # Interpolate each curve on a dense grid for peak finding
-   
+    E_mask = E[mask]
+    if E_mask.size < 2:
+        return {"sigma_L1": L1, "sigma_L2": L2}
+
+    order = np.argsort(E_mask)
+    E_mask = E_mask[order]
+    y_true_m = y_true[mask][order]
+    y_mean_m = y_mean[mask][order]
+    y_samp_m = y_samples[:, mask][:, order]
+
     def get_peak_metrics(E_arr, Y_arr):
         f = interp1d(E_arr, Y_arr, kind='cubic', bounds_error=False, fill_value="extrapolate")
-        
-        Nq = max(int(np.ceil(10 * len(E_arr))), 200)  # upsample factor 10 or at least 200 points
-        Xq = np.linspace(E_arr[0], E_arr[-1], Nq)
+        Xq = np.linspace(E_arr[0], E_arr[-1], max(200, 10*len(E_arr)))
         Yq = f(Xq)
-        # Peak location and height
-        i_peak = int(np.argmax(Yq))
-        peak_loc = float(Xq[i_peak])
-        peak_height = float(Yq[i_peak])
-        # Full Width at Half Maximum (FWHM)
-        half = 0.5 * peak_height
+        i_pk = np.argmax(Yq)
+        pk_loc, pk_ht = Xq[i_pk], Yq[i_pk]
+        half = 0.5 * pk_ht
         z = Yq - half
-        sign = np.signbit(z)
-        cross_idxs = np.where(sign[:-1] != sign[1:])[0]
-        crossings = []
-        for k in cross_idxs:
-            # Linear interpolation to find crossing point where Y = half
-            x0, x1 = Xq[k], Xq[k+1]
-            z0, z1 = z[k], z[k+1]
-            if z1 != z0:
-                x_cross = x0 - z0 * (x1 - x0) / (z1 - z0)
-                crossings.append(x_cross)
-        if len(crossings) >= 2:
-            fwhm_val = float(np.max(crossings) - np.min(crossings))
+        cross = np.where(np.signbit(z[:-1]) != np.signbit(z[1:]))[0]
+        if len(cross) >= 2:
+            x0 = Xq[cross[0]]
+            x1 = Xq[cross[-1]+1]
+            fwhm = x1 - x0
         else:
-            fwhm_val = np.nan
-        return peak_loc, peak_height, fwhm_val
-    true_peak_loc, true_peak_height, true_fwhm = get_peak_metrics(E_masked, true_masked)
-    pred_peak_loc, pred_peak_height, pred_fwhm = get_peak_metrics(E_masked, pred_masked)
-    # Compute residuals (predicted minus true)
-    peak_loc_resid = float(pred_peak_loc - true_peak_loc)
-    peak_height_resid = float(pred_peak_height - true_peak_height)
-    fwhm_resid = float(pred_fwhm - true_fwhm) if (not np.isnan(pred_fwhm) and not np.isnan(true_fwhm)) else np.nan
-    return {
-        "L1": L1,
-        "L2": L2,
-        "peak_loc_resid": peak_loc_resid,
-        "peak_height_resid": peak_height_resid,
-        "fwhm_resid": fwhm_resid
-    }
+            fwhm = np.nan
+        return pk_loc, pk_ht, fwhm
 
+    # --- σ-space peak metrics ---
+    t_loc, t_ht, t_fwhm = get_peak_metrics(E_mask, y_true_m)
+    p_loc, p_ht, p_fwhm = get_peak_metrics(E_mask, y_mean_m)
+
+    sigma_metrics = dict(
+        sigma_L1=L1,
+        sigma_L2=L2,
+        sigma_peak_loc_resid=p_loc - t_loc,
+        sigma_peak_height_resid=p_ht - t_ht,
+        sigma_fwhm_resid=(p_fwhm - t_fwhm)
+    )
+
+    # --------- Empirical coverage in σ-space ---------
+    coverages = {}
+    for alpha in levels:
+        lower = np.percentile(y_samp_m, (1 - alpha) / 2 * 100, axis=0)
+        upper = np.percentile(y_samp_m, (1 + alpha) / 2 * 100, axis=0)
+        inside = (y_true_m >= lower) & (y_true_m <= upper)
+        coverages[f"sigma_emp_cov_{int(alpha*100)}"] = np.mean(inside)
+
+    # --------- Barrier distributions ---------
+    D_true = barrier_dist(E_mask, y_true_m)
+    D_mean = barrier_dist(E_mask, y_mean_m)
+    D_samps = np.array([barrier_dist(E_mask, ys) for ys in y_samp_m])
+
+    D_err = D_mean - D_true
+    DL1 = float(np.mean(np.abs(D_err)))
+    DL2 = float(np.sqrt(np.mean(D_err**2)))
+
+    t_loc, t_ht, t_fwhm = get_peak_metrics(E_mask, D_true)
+    p_loc, p_ht, p_fwhm = get_peak_metrics(E_mask, D_mean)
+
+    barrier_metrics = dict(
+        barrier_L1=DL1,
+        barrier_L2=DL2,
+        barrier_peak_loc_resid=p_loc - t_loc,
+        barrier_peak_height_resid=p_ht - t_ht,
+        barrier_fwhm_resid=(p_fwhm - t_fwhm)
+    )
+
+    # --- Empirical coverage in barrier space ---
+    for alpha in levels:
+        lower = np.percentile(D_samps, (1 - alpha) / 2 * 100, axis=0)
+        upper = np.percentile(D_samps, (1 + alpha) / 2 * 100, axis=0)
+        inside = (D_true >= lower) & (D_true <= upper)
+        coverages[f"barrier_emp_cov_{int(alpha*100)}"] = np.mean(inside)
+
+    out = {}
+    out.update(sigma_metrics)
+    out.update(barrier_metrics)
+    out.update(coverages)
+    return out
 
 def setup_logger(
     name=None,
