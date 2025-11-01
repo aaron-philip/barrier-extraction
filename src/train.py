@@ -12,37 +12,200 @@ from bnn_utils import compute_Df
 from utils import compute_all_metrics, barrier_dist
 from wong import sigma
 
+# --- Constants shared across helpers ---
+WONG_BOUNDS = ([40.0, 6.0, 1.0], [100.0, 16.0, 10.0])  # (E0, R0, hw)
+R0_FIXED = 11.0
+HW_FIXED = 6.0
+
+def estimate_E0_from_data(E, Sigma, eps=1e-12, smooth_win=5):
+    """
+    Estimate barrier energy E0 as the energy where log10(Sigma) rises most steeply.
+    Steps:
+      - sort by E
+      - clip Sigma to avoid log issues
+      - moving-average smooth in log10 space
+      - pick E at max positive gradient
+    """
+    E = np.asarray(E, dtype=float)
+    Sigma = np.asarray(Sigma, dtype=float)
+
+    order = np.argsort(E)
+    E_sorted = E[order]
+    S_sorted = Sigma[order]
+
+    S_clipped = np.clip(S_sorted, eps, None)
+    y = S_clipped
+
+    w = max(3, int(smooth_win) | 1)  # odd window
+    if 1 < w < y.size:
+        kernel = np.ones(w, dtype=float) / w
+        y_smooth = np.convolve(y, kernel, mode="same")
+    else:
+        y_smooth = y
+
+    dy_dE = np.gradient(y_smooth, E_sorted)
+    idx = int(np.argmax(dy_dE))
+    return float(E_sorted[idx])
+
+def estimate_E0_from_data(E, Sigma, eps=1e-12, smooth_win=5):
+    """
+    Estimate barrier energy E0 as the energy where log10(Sigma) rises most steeply.
+    Steps:
+      - sort by E
+      - clip Sigma to avoid log issues
+      - moving-average smooth in log10 space
+      - pick E at max positive gradient
+    """
+    E = np.asarray(E, dtype=float)
+    Sigma = np.asarray(Sigma, dtype=float)
+
+    order = np.argsort(E)
+    E_sorted = E[order]
+    S_sorted = Sigma[order]
+
+    S_clipped = np.clip(S_sorted, eps, None)
+    y = np.log10(S_clipped)
+
+    w = max(3, int(smooth_win) | 1)  # odd window
+    if 1 < w < y.size:
+        kernel = np.ones(w, dtype=float) / w
+        y_smooth = np.convolve(y, kernel, mode="same")
+    else:
+        y_smooth = y
+
+    dy_dE = np.gradient(y_smooth, E_sorted)
+    idx = int(np.argmax(dy_dE))
+    return float(E_sorted[idx])
+
+def init_E0(E, Sigma, bounds=WONG_BOUNDS, verbose=False):
+    """Return a data-driven E0, clamped to bounds; fallback to median(E) if needed."""
+    try:
+        e0 = estimate_E0_from_data(E, Sigma)
+    except Exception as e:
+        if verbose:
+            print(f"[E0 init] fallback due to error: {e}")
+        e0 = float(np.median(np.asarray(E, dtype=float)))
+    lo, hi = bounds[0][0], bounds[1][0]
+    return float(np.clip(e0, lo, hi))
+
+
+def run_wong_trial(E, Sigma, Sigma_err, p0, bounds=WONG_BOUNDS, maxfev=10_000):
+    """
+    Try a single non-linear least squares fit. Returns (popt, pcov, chi2).
+    Raises any curve_fit error to the caller.
+    """
+    popt, pcov = curve_fit(
+        sigma, E, Sigma, p0=p0,
+        sigma=Sigma_err, absolute_sigma=True,
+        bounds=bounds, maxfev=maxfev
+    )
+    resid = (Sigma - sigma(E, *popt)) / np.maximum(Sigma_err, 1e-12)
+    chi2 = float(np.sum(resid**2))
+    return popt, pcov, chi2
+
+def fit_wong_with_restarts(E, Sigma, Sigma_err, E0_center, n_restarts=5, jitter=2.0,
+                           bounds=WONG_BOUNDS, verbose=False):
+    """
+    Multiple restarts around a data-driven E0. R0 and hw fixed to midpoints.
+    Returns (best_popt, best_pcov, best_chi2) or (None, None, inf) if all fail.
+    """
+    best_popt, best_pcov, best_chi2 = None, None, np.inf
+    lo, hi = bounds[0][0], bounds[1][0]
+
+    for trial in range(int(n_restarts)):
+        E0_init = float(np.clip(E0_center + np.random.uniform(-jitter, jitter), lo, hi))
+        p0 = [E0_init, R0_FIXED, HW_FIXED]
+
+        try:
+            popt, pcov, chi2 = run_wong_trial(E, Sigma, Sigma_err, p0, bounds=bounds)
+            if chi2 < best_chi2:
+                best_popt, best_pcov, best_chi2 = popt, pcov, chi2
+        except Exception as e:
+            if verbose:
+                print(f"[Restart {trial}] failed: {e}")
+
+    return best_popt, best_pcov, best_chi2
+
+def make_x_pred(E, pad_low=5.0, pad_high=5.0, step=0.2):
+    """Dense energy grid for plotting/metrics."""
+    Emin = float(np.min(E))
+    Emax = float(np.max(E))
+    start = max(0.0, Emin - pad_low)
+    stop = Emax + pad_high
+    return np.arange(start, stop, step)
+
+def draw_sigma_samples(x_pred, mean_params, cov_params, n_samples):
+    """
+    Sample parameters ~ N(mean_params, cov_params) and evaluate sigma on x_pred.
+    Returns (y_mean, samples_matrix) where samples_matrix has shape [n_samples, len(x_pred)].
+    """
+    # y_mean from MAP/ML fit
+    y_mean = sigma(x_pred, *mean_params)
+
+    # Robust sampling even if covariance is near-singular
+    try:
+        samples = np.random.multivariate_normal(mean_params, cov_params, int(n_samples))
+    except np.linalg.LinAlgError:
+        # Fallback: diagonalize with non-negative variances
+        diag = np.clip(np.diag(cov_params), 1e-12, None)
+        cov_fallback = np.diag(diag)
+        samples = np.random.multivariate_normal(mean_params, cov_fallback, int(n_samples))
+
+    y_samples = np.array([sigma(x_pred, *p) for p in samples])
+    return y_mean, y_samples
+
+def percentile_bands(samples, levels):
+    """
+    samples: [n_samples, n_points]
+    levels: iterable of alphas (e.g., 0.5, 0.68, 0.9, 0.95)
+    Returns dict: lower_XX, upper_XX -> arrays of length n_points
+    """
+    bands = {}
+    for alpha in levels:
+        lo = np.percentile(samples, (1 - alpha) / 2 * 100, axis=0)
+        hi = np.percentile(samples, (1 + alpha) / 2 * 100, axis=0)
+        bands[f"lower_{int(alpha * 100)}"] = lo
+        bands[f"upper_{int(alpha * 100)}"] = hi
+    return bands
+
+def barrier_from_sigma_samples(x_pred, y_mean, y_samples, y_true=None):
+    """
+    Compute D(E) from sigma(E) for mean, samples, and (optionally) true.
+    Returns (D_mean, D_samples, D_true or nan-array).
+    """
+    D_mean = barrier_dist(x_pred, y_mean)
+    D_samples = np.array([barrier_dist(x_pred, ys) for ys in y_samples])
+
+    if y_true is None or not np.all(np.isfinite(y_true)):
+        D_true = np.full_like(D_mean, np.nan)
+    else:
+        D_true = barrier_dist(x_pred, y_true)
+
+    return D_mean, D_samples, D_true
+
 def fit_wong(
     E, Sigma, Sigma_err, true_params,
     levels=(0.5, 0.68, 0.9, 0.95),
     n_restarts=5, n_samples=200, verbose=False
 ):
     """
-    Fit Wong parameters to noisy data with multiple restarts, then
-    draw posterior samples for sigma(E), compute metrics using compute_all_metrics(),
-    and precompute uncertainty bands at each level.
+    Fit Wong parameters to noisy data with multiple restarts (data-driven E0),
+    then draw posterior parameter samples, compute metrics & uncertainty bands.
     """
-    bounds = ([40.0, 6.0, 1.0], [100.0, 16.0, 10.0])
-    best_popt, best_pcov, best_chi2 = None, None, np.inf
+    # 1) Data-driven E0
+    E0_data = init_E0(E, Sigma, bounds=WONG_BOUNDS, verbose=verbose)
 
-    # --- Try multiple restarts ---
-    for trial in range(n_restarts):
-        p0 = [np.random.uniform(50, 90),
-              np.random.uniform(8, 14),
-              np.random.uniform(2, 8)]
-        try:
-            popt, pcov = curve_fit(
-                sigma, E, Sigma, p0=p0,
-                sigma=Sigma_err, absolute_sigma=True,
-                bounds=bounds, maxfev=10_000
-            )
-            resid = (Sigma - sigma(E, *popt)) / np.maximum(Sigma_err, 1e-12)
-            chi2 = np.sum(resid**2)
-            if chi2 < best_chi2:
-                best_popt, best_pcov, best_chi2 = popt, pcov, chi2
-        except Exception as e:
-            if verbose:
-                print(f"[Restart {trial}] failed: {e}")
+    # 2) Multi-restart fit (R0, hw fixed to midpoints; jitter E0)
+    best_popt, best_pcov, best_chi2 = fit_wong_with_restarts(
+        E=np.asarray(E, dtype=float),
+        Sigma=np.asarray(Sigma, dtype=float),
+        Sigma_err=np.asarray(Sigma_err, dtype=float),
+        E0_center=E0_data,
+        n_restarts=n_restarts,
+        jitter=2.0,
+        bounds=WONG_BOUNDS,
+        verbose=verbose,
+    )
 
     if best_popt is None:
         return {
@@ -50,39 +213,32 @@ def fit_wong(
             "chi2": np.nan, "n_restarts": n_restarts, "n_samples": n_samples
         }
 
-    # --- Mean prediction ---
-    x_pred = np.arange(max(0, E.min() - 5), E.max() + 5, 0.2)
-    y_mean = sigma(x_pred, *best_popt)
+    # 3) Prediction grid
+    x_pred = make_x_pred(E)
 
-    # --- Draw posterior parameter samples ---
-    samples = np.random.multivariate_normal(best_popt, best_pcov, n_samples)
-    y_samples = np.array([sigma(x_pred, *p) for p in samples])
+    # 4) Mean σ and σ-samples from parameter posterior
+    y_mean, y_samples = draw_sigma_samples(x_pred, best_popt, best_pcov, n_samples)
 
-    # --- True curve ---
-    y_true = sigma(x_pred, *true_params) if true_params is not None else np.nan * y_mean
+    # 5) True σ if available
+    if true_params is not None:
+        try:
+            y_true = sigma(x_pred, *true_params)
+        except Exception:
+            y_true = np.full_like(y_mean, np.nan)
+    else:
+        y_true = np.full_like(y_mean, np.nan)
 
-    # --- Compute metrics using existing function (unchanged) ---
+    # 6) Metrics (existing function)
     metrics = compute_all_metrics(x_pred, y_true, y_mean, y_samples, levels=levels)
 
-    # --- Compute uncertainty bands (percentiles) for σ and D ---
-    def percentile_bands(samples, levels):
-        bands = {}
-        for alpha in levels:
-            lower = np.percentile(samples, (1 - alpha) / 2 * 100, axis=0)
-            upper = np.percentile(samples, (1 + alpha) / 2 * 100, axis=0)
-            bands[f"lower_{int(alpha*100)}"] = lower
-            bands[f"upper_{int(alpha*100)}"] = upper
-        return bands
-
+    # 7) Bands in σ-space
     sigma_bands = percentile_bands(y_samples, levels)
 
-    # Barrier distributions from samples
-    D_samples = np.array([barrier_dist(x_pred, y) for y in y_samples])
-    D_mean = barrier_dist(x_pred, y_mean)
-    D_true = barrier_dist(x_pred, y_true)
+    # 8) Barrier distributions + bands
+    D_mean, D_samples, D_true = barrier_from_sigma_samples(x_pred, y_mean, y_samples, y_true)
     barrier_bands = percentile_bands(D_samples, levels)
 
-    # --- Attach metadata and bands ---
+    # 9) Package
     metrics.update({
         "E0_fit": best_popt[0],
         "R0_fit": best_popt[1],
@@ -102,75 +258,110 @@ def fit_wong(
     return metrics
 
 
-def fit_gp(E, Sigma, Sigma_err, true_params, levels=(0.5, 0.68, 0.9, 0.95)):
-    """Fit GP and compute full metrics + empirical coverage bands."""
-    range_x = E.max() - E.min()
-    y_var = np.var(Sigma)
-    kernel = ConstantKernel(y_var, (1e-6, 1e6)) * RBF(0.5 * range_x, (1e-6, 1e6)) \
-             + WhiteKernel(noise_level=np.mean(Sigma_err**2), noise_level_bounds=(1e-10, 1e6))
-    gp = GaussianProcessRegressor(kernel=kernel, alpha=0.0, n_restarts_optimizer=2)
-    gp.fit(E.reshape(-1,1), Sigma)
 
-    x_pred = np.arange(max(0, E.min()-5), E.max()+5, 0.2).reshape(-1,1)
-    mean, std = gp.predict(x_pred, return_std=True)
-    mean, std = mean.ravel(), std.ravel()
 
-    # === True function ===
-    if true_params is not None and sigma is not None:
-        y_true = sigma(x_pred.ravel(), *true_params)
+def fit_gp(
+    E, Sigma, Sigma_err, true_params,
+    levels=(0.5, 0.68, 0.9, 0.95),
+    n_restarts=2, n_samples=200, verbose=False
+):
+    """
+    Gaussian Process regression on (E, Sigma) using the provided kernel recipe.
+    Draw posterior samples for sigma(E), compute metrics using compute_all_metrics(),
+    and precompute uncertainty bands at each level—analogous to fit_wong.
+    Assumes sklearn GP + kernels are already imported.
+    """
+    # --- Defensive casts & shapes ---
+    E = np.asarray(E, dtype=float).reshape(-1)
+    Sigma = np.asarray(Sigma, dtype=float).reshape(-1)
+    Sigma_err = np.asarray(Sigma_err, dtype=float).reshape(-1)
+
+    # --- Basic scales for kernel construction ---
+    # y_var for ConstantKernel scale; range_x for RBF length-scale prior
+    dE = np.diff(E)
+    ell0 = min(np.abs(dE))
+    lbound, ubound = ell0 , 10.0
+
+    # --- Kernel & GP (your exact recipe) ---
+    kernel = (
+        RBF(length_scale=1.0, length_scale_bounds=(lbound, ubound))
+       # + WhiteKernel(noise_level=noise_level, noise_level_bounds=(1e-10, 1e6))
+    )
+    gp = GaussianProcessRegressor(
+        kernel=kernel,
+        alpha=Sigma_err**2,                   # all noise is modeled via WhiteKernel
+        n_restarts_optimizer=int(n_restarts),
+        normalize_y=False,           # keep physical scale (change if you prefer)
+        random_state=None
+    )
+
+    # --- Fit ---
+    gp.fit(E.reshape(-1, 1), Sigma)
+    # You can access gp.kernel_ (optimized) and gp.log_marginal_likelihood_value_
+
+    # --- Prediction grid (same style as fit_wong) ---
+    x_pred = np.arange(max(0.0, E.min() - 5.0), E.max() + 5.0, 0.2)
+    Xp = x_pred.reshape(-1, 1)
+
+    # --- Posterior mean and draws ---
+    # (We prefer sampling to match the "y_samples" workflow in fit_wong.)
+    y_mean, y_std = gp.predict(Xp, return_std=True)
+    # Posterior function draws (shape: [n_points, n_samples]) -> transpose to [n_samples, n_points]
+    y_samples = gp.sample_y(Xp, n_samples=n_samples, random_state=None).T
+
+    # --- True curve (keep consistency with fit_wong interface) ---
+    if true_params is not None:
+        try:
+            y_true = sigma(x_pred, *true_params)
+        except Exception:
+            # if sigma(true_params) is not available, fall back to NaNs
+            y_true = np.full_like(y_mean, np.nan)
     else:
-        y_true = np.full_like(mean, np.nan)
+        y_true = np.full_like(y_mean, np.nan)
 
-    # === Metrics ===
-    metrics = compute_all_metrics(x_pred.ravel(), mean, y_true)
+    # --- Metrics in σ-space (uses your existing helper) ---
+    metrics = compute_all_metrics(x_pred, y_true, y_mean, y_samples, levels=levels)
 
-    # === Empirical coverage ===
-    coverages = {}
-    for alpha in levels:
-        z = scipy.stats.norm.ppf(0.5 + alpha/2.0)
-        lower, upper = mean - z*std, mean + z*std
-        inside = (y_true >= lower) & (y_true <= upper)
-        coverages[f"emp_cov_{int(alpha*100)}"] = np.mean(inside)
-    metrics.update(coverages)
+    # --- Percentile bands helper (same as fit_wong) ---
+    def percentile_bands(samples, levels):
+        bands = {}
+        for alpha in levels:
+            lo = np.percentile(samples, (1 - alpha) / 2 * 100, axis=0)
+            hi = np.percentile(samples, (1 + alpha) / 2 * 100, axis=0)
+            bands[f"lower_{int(alpha * 100)}"] = lo
+            bands[f"upper_{int(alpha * 100)}"] = hi
+        return bands
 
-    # === Hyperparameters ===
-    learned = gp.kernel_
+    sigma_bands = percentile_bands(y_samples, levels)
+
+    # --- Barrier distributions ---
+    D_mean  = barrier_dist(x_pred, y_mean)
+    D_true  = barrier_dist(x_pred, y_true) if np.all(np.isfinite(y_true)) else np.full_like(D_mean, np.nan)
+    D_samples = np.array([barrier_dist(x_pred, ys) for ys in y_samples])
+    barrier_bands = percentile_bands(D_samples, levels)
+
+    # --- Attach GP metadata & bands (mirroring fit_wong returns) ---
     metrics.update({
-        "gp_signal_variance": float(learned.k1.k1.constant_value),
-        "gp_length_scale": float(learned.k1.k2.length_scale),
-        "gp_noise_level": float(learned.k2.noise_level)
+        # No param triplet here; include GP details instead
+        "gp_kernel_opt": str(gp.kernel_),
+        "gp_log_marginal_likelihood": float(getattr(gp, "log_marginal_likelihood_value_", np.nan)),
+        "n_restarts": int(n_restarts),
+        "n_samples": int(n_samples),
+
+        # Curves for downstream plotting/inspection
+        "x_pred": x_pred,
+        "y_mean": y_mean,
+        "y_true": y_true,
+        "D_mean": D_mean,
+        "D_true": D_true,
+
+        # Uncertainty bands (σ-space and barrier-space)
+        "sigma_bands": sigma_bands,
+        "barrier_bands": barrier_bands,
     })
-    return metrics
-
-def fit_bnn(E, Sigma, true_params, est, levels=(0.5, 0.68, 0.9, 0.95)):
-    """
-    Given a trained AutoBNN estimator, compute mean, std, and empirical coverage.
-    """
-    x_pred = np.arange(max(0,E.min()-5), E.max()+5, 0.2)
-    all_preds = compute_Df(est, x_pred)
-
-    mean = np.mean(all_preds, axis=0)
-    std = np.std(all_preds, axis=0)
-
-    # === True curve ===
-    if true_params is not None and sigma is not None:
-        y_true = sigma(x_pred, *true_params)
-    else:
-        y_true = np.full_like(mean, np.nan)
-
-    # === Standard metrics ===
-    metrics = compute_all_metrics(x_pred, mean, y_true)
-
-    # === Empirical coverage ===
-    coverages = {}
-    for alpha in levels:
-        z = scipy.stats.norm.ppf(0.5 + alpha/2.0)
-        lower, upper = mean - z*std, mean + z*std
-        inside = (y_true >= lower) & (y_true <= upper)
-        coverages[f"emp_cov_{int(alpha*100)}"] = np.mean(inside)
-    metrics.update(coverages)
 
     return metrics
+
 
 
 

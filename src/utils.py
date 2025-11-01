@@ -204,6 +204,43 @@ def summarize(err):
         max    = float(np.max(err)),
     )
 
+# -----------------------------
+def _load_packed_npz(path):
+    """
+    Load packed dataset produced by the revised generator:
+      - E_cat, Sigma_cat, Sigma_err_cat, idx_ptr, params
+    Returns a dict with:
+      N: number of datasets
+      get_i(i): -> (E_i, Sigma_i, Sigma_err_i, params_i) as 1-D float arrays
+    """
+    z = np.load(path, allow_pickle=False)
+    required = {"E_cat", "Sigma_cat", "Sigma_err_cat", "idx_ptr", "params"}
+    missing = required - set(z.files)
+    if missing:
+        raise ValueError(f"Packed NPZ missing keys: {sorted(missing)}")
+
+    E_cat      = z["E_cat"]
+    Sigma_cat  = z["Sigma_cat"]
+    Sigmae_cat = z["Sigma_err_cat"]
+    idx_ptr    = z["idx_ptr"]
+    params     = z["params"]
+
+    N = int(len(idx_ptr) - 1)
+
+    def get_i(i):
+        i0, i1 = int(idx_ptr[i]), int(idx_ptr[i+1])
+        E_i      = np.asarray(E_cat[i0:i1], dtype=float)
+        Sigma_i  = np.asarray(Sigma_cat[i0:i1], dtype=float)
+        Sigmae_i = np.asarray(Sigmae_cat[i0:i1], dtype=float)
+        p_i      = np.asarray(params[i], dtype=float)
+        # (Optional) enforce sorting by E in case upstream changed order
+        order = np.argsort(E_i)
+        return E_i[order], Sigma_i[order], Sigmae_i[order], p_i
+
+    return {"N": N, "get_i": get_i}
+
+
+
 def compute_all_metrics(E, y_true, y_mean, y_samples, levels=(0.5, 0.68, 0.9, 0.95),
                         x_min=None, x_max=None):
     """

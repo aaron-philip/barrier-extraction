@@ -56,7 +56,6 @@ def plot_wong_sanity(data_path, bands_path, csv_path, n_samples=5, levels=(0.68,
         D_mean, D_true = entry["D_mean"], entry["D_true"]
         sigma_bands = entry["sigma_bands"]
         barrier_bands = entry["barrier_bands"]
-        print(y_mean, y_true, D_mean, D_true, sigma_bands, barrier_bands)
 
         # Experimental (fitting) data
         E_data = np.array(E_all[i], dtype=float)
@@ -72,9 +71,10 @@ def plot_wong_sanity(data_path, bands_path, csv_path, n_samples=5, levels=(0.68,
         for alpha in levels:
             lo = sigma_bands[f"lower_{int(alpha*100)}"]
             hi = sigma_bands[f"upper_{int(alpha*100)}"]
-            ax1.fill_between(E, lo, hi, alpha=0.15, label=f"{int(alpha*100)}% band")
+            ax1.fill_between(E, lo, hi, label=f"{int(alpha*100)}% band")
         ax1.set_xlabel("E [MeV]")
         ax1.set_ylabel("σ(E)")
+        ax1.set_yscale("log")
         ax1.set_title(f"Cross Section Fit #{i}")
         ax1.legend(frameon=False, fontsize=8)
 
