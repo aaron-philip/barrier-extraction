@@ -5,7 +5,7 @@ import pandas as pd
 import os
 import sys
 import logging
-
+import h5py
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -121,73 +121,6 @@ def point_diff(x,y,std,dE=1):
     return der, der_err
 
 
-def compute_peak_metrics(
-    x: np.ndarray,
-    y: np.ndarray,
-    x_min: float = 65.0,
-    x_max: float = 80.0,
-    kind: str = "cubic",           # 'linear', 'quadratic', or 'cubic'
-    upsample_factor: float = 10.0  # how dense to resample
-):
-    """
-    Returns (peak_loc, peak_height, fwhm) by:
-      1) restricting to [x_min, x_max],
-      2) interpolating with scipy.interpolate.interp1d,
-      3) evaluating on a dense grid,
-      4) computing peak and FWHM on the interpolated curve.
-    """
-    x = np.asarray(x)
-    y = np.asarray(y)
-
-    # restrict to subrange
-    mask = np.ones_like(x, dtype=bool)
-    if x_min is not None:
-        mask &= (x >= x_min)
-    if x_max is not None:
-        mask &= (x <= x_max)
-    x_sub, y_sub = x[mask], y[mask]
-
-    if x_sub.size < 2:
-        return np.nan, np.nan, np.nan
-
-    # sort by x
-    order = np.argsort(x_sub)
-    x_sub, y_sub = x_sub[order], y_sub[order]
-
-    # interpolation function
-    f = interp1d(x_sub, y_sub, kind=kind, bounds_error=False, fill_value="extrapolate")
-
-    # dense grid for evaluation
-    xmin, xmax = float(x_sub[0]), float(x_sub[-1])
-    n_query = max(int(np.ceil(upsample_factor * len(x_sub))), 200)
-    Xq = np.linspace(xmin, xmax, n_query)
-    Yq = f(Xq)
-
-    # peak
-    i = int(np.argmax(Yq))
-    peak_loc = float(Xq[i])
-    peak_height = float(Yq[i])
-
-    # FWHM
-    half = 0.5 * peak_height
-    z = Yq - half
-    sign = np.signbit(z)
-    cross_idxs = np.where(sign[:-1] != sign[1:])[0]
-
-    crossings = []
-    for k in cross_idxs:
-        x0, x1 = Xq[k], Xq[k+1]
-        z0, z1 = z[k], z[k+1]
-        if z1 != z0:
-            x_cross = x0 - z0 * (x1 - x0) / (z1 - z0)
-            crossings.append(x_cross)
-
-    if len(crossings) >= 2:
-        fwhm = float(np.max(crossings) - np.min(crossings))
-    else:
-        fwhm = np.nan
-
-    return peak_loc, peak_height, fwhm
 
 def summarize(err):
     if err.size == 0:
@@ -204,40 +137,33 @@ def summarize(err):
         max    = float(np.max(err)),
     )
 
-# -----------------------------
-def _load_packed_npz(path):
+def load_packed_hdf5(path):
     """
-    Load packed dataset produced by the revised generator:
-      - E_cat, Sigma_cat, Sigma_err_cat, idx_ptr, params
-    Returns a dict with:
-      N: number of datasets
-      get_i(i): -> (E_i, Sigma_i, Sigma_err_i, params_i) as 1-D float arrays
+    Lazy-load packed Wong dataset stored in HDF5 format.
+    Returns:
+      - N: number of datasets
+      - get_i(i): function returning (E_i, Sigma_i, Sigma_err_i, params_i)
     """
-    z = np.load(path, allow_pickle=False)
-    required = {"E_cat", "Sigma_cat", "Sigma_err_cat", "idx_ptr", "params"}
-    missing = required - set(z.files)
-    if missing:
-        raise ValueError(f"Packed NPZ missing keys: {sorted(missing)}")
+    f = h5py.File(path, "r")
 
-    E_cat      = z["E_cat"]
-    Sigma_cat  = z["Sigma_cat"]
-    Sigmae_cat = z["Sigma_err_cat"]
-    idx_ptr    = z["idx_ptr"]
-    params     = z["params"]
+    E_cat = f["E_cat"]
+    Sigma_cat = f["Sigma_cat"]
+    Sigma_err_cat = f["Sigma_err_cat"]
+    idx_ptr = f["idx_ptr"][:]
+    params = f["params"][:]
 
-    N = int(len(idx_ptr) - 1)
+    N = len(idx_ptr) - 1
 
     def get_i(i):
-        i0, i1 = int(idx_ptr[i]), int(idx_ptr[i+1])
-        E_i      = np.asarray(E_cat[i0:i1], dtype=float)
-        Sigma_i  = np.asarray(Sigma_cat[i0:i1], dtype=float)
-        Sigmae_i = np.asarray(Sigmae_cat[i0:i1], dtype=float)
-        p_i      = np.asarray(params[i], dtype=float)
-        # (Optional) enforce sorting by E in case upstream changed order
+        i0, i1 = idx_ptr[i], idx_ptr[i + 1]
+        E_i = E_cat[i0:i1]
+        S_i = Sigma_cat[i0:i1]
+        Se_i = Sigma_err_cat[i0:i1]
+        p_i = params[i]
         order = np.argsort(E_i)
-        return E_i[order], Sigma_i[order], Sigmae_i[order], p_i
+        return E_i[order], S_i[order], Se_i[order], p_i
 
-    return {"N": N, "get_i": get_i}
+    return {"N": N, "get_i": get_i, "file": f}
 
 
 

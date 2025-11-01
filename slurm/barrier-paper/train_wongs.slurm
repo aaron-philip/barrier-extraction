@@ -15,7 +15,7 @@ LOG_DIR=/mnt/home/philipaa/scratch/barrier-paper-logs
 mkdir -p $RESULT_DIR $LOG_DIR
 
 # === Compute array length dynamically ===
-FILES=($DATA_DIR/*.npz)
+FILES=($DATA_DIR/*.h5)
 NUM_FILES=${#FILES[@]}
 
 if [ -z "$SLURM_ARRAY_TASK_ID" ]; then
@@ -26,8 +26,8 @@ fi
 
 # === Dataset selection ===
 DATAFILE=${FILES[$SLURM_ARRAY_TASK_ID]}
-BASENAME=$(basename "$DATAFILE" .npz)
-OUTCSV=$RESULT_DIR/${BASENAME}_wong.csv
+BASENAME=$(basename "$DATAFILE")
+OUTH5=$RESULT_DIR/${BASENAME}_wong.h5
 
 # === Activate environment right before Python ===
 source ~/.bashrc
@@ -42,7 +42,6 @@ python -c "import sklearn; print('scikit-learn version:', sklearn.__version__)"
 echo "Running on dataset: $DATAFILE"
 python /mnt/research/ascsn/aaron-philip/barrier-extraction/scripts/train_wongs.py \
   --data "$DATAFILE" \
-  --out_csv "$OUTCSV" \
-  --log_every 50 \
-  --save_every 500
+  --out_h5 "$OUTH5" \
+  --log_every 50
 
