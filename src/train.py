@@ -151,7 +151,7 @@ def fit_wong(E, Sigma, Sigma_err, n_restarts=5, n_samples=200):
 
 def fit_gp(
     E, Sigma, Sigma_err,
-    n_restarts=2, n_samples=200, random_state=None
+    n_restarts=10, n_samples=200, random_state=None
 ):
     """
     GP regression on (E, Sigma) with simple RBF kernel and heteroscedastic noise via alpha=Sigma_err^2.
@@ -174,7 +174,7 @@ def fit_gp(
         ell_max = max(5.0, 10.0 * np.median(np.abs(dE)))
     else:
         ell_min, ell_max = 1e-3, 10.0
-    kernel = RBF(length_scale=1.0, length_scale_bounds=(ell_min, ell_max))
+    kernel = 1.0*RBF(length_scale=1.0, length_scale_bounds=(ell_min, ell_max))
 
     gp = GaussianProcessRegressor(
         kernel=kernel,
@@ -186,7 +186,7 @@ def fit_gp(
 
     # --- fit ---
     gp.fit(E.reshape(-1, 1), Sigma)
-    kernel_opt = str(gp.kernel_)
+    kernel_opt = gp.kernel_.k2.length_scale
     lml = float(getattr(gp, "log_marginal_likelihood_value_", np.nan))
 
     # --- prediction grid (match Wong plotting style) ---
