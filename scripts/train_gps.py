@@ -3,6 +3,7 @@ import os, sys, time
 import numpy as np
 import argparse
 import h5py
+from sklearn.gaussian_process.kernels import RationalQuadratic
 
 # project imports
 if "/mnt/research/ascsn/aaron-philip/barrier-extraction/src" not in sys.path:
@@ -44,8 +45,13 @@ def main():
 
                 res = fit_gp(
                     E_i, S_i, Se_i,
-                    n_restarts=args.n_restarts, n_samples=args.n_samples, random_state=args.random_state
-                )
+                    n_restarts=args.n_restarts, n_samples=args.n_samples, random_state=args.random_state,
+                    kernel=1.0*RationalQuadratic(
+                length_scale=90.0,
+                length_scale_bounds="fixed",
+                alpha=1.0,             # shape parameter
+                alpha_bounds=(1e-12, 1e2)
+                ))
 
                 grp = f_out.create_group(f"{i}")
                 # raw data used for fit (handy for plotting)
