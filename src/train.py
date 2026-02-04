@@ -188,8 +188,8 @@ def fit_gp(
 
     # --- fit ---
     gp.fit(E.reshape(-1, 1), Sigma)
-    kernel_opt = gp.kernel_.k2.length_scale
-    lml = float(getattr(gp, "log_marginal_likelihood_value_", np.nan))
+    #kernel_opt = gp.kernel_.k2.length_scale
+    #lml = float(getattr(gp, "log_marginal_likelihood_value_", np.nan))
 
     # --- prediction grid (match Wong plotting style) ---
     x_pred = np.arange(max(0.0, E.min() - 5.0), E.max() + 5.0, 0.2).astype(float)
@@ -204,8 +204,8 @@ def fit_gp(
         "y_mean": y_mean,
         "y_samples": y_samples,      # (n_samples, len(x_pred))
         # metadata
-        "gp_kernel_opt": kernel_opt,
-        "gp_log_marginal_likelihood": lml,
+        "gp_kernel_opt": np.nan, #kernel_opt,
+        "gp_log_marginal_likelihood": np.nan,#lml,
         "n_restarts": int(n_restarts),
         "n_samples": int(n_samples),
     }
@@ -256,6 +256,141 @@ def train_gp(E_train, sigma_mu_train, delta_sigma_train, n_restarts=10, kernel=N
     )
     gp.fit(np.asarray(E_train).reshape(-1, 1), np.asarray(sigma_mu_train))
     return gp
+
+from sklearn.gaussian_process.kernels import Kernel
+
+class ChangePointKernel(Kernel):
+    """
+    Smooth changepoint kernel:
+        K = S*K1 + T*K2
+    where S_ij = s(x_i)s(x_j), T_ij = (1-s(x_i))(1-s(x_j)),
+    s(x) = sigmoid((x - c)/w).
+
+    This version supports sklearn's requirement that `kernel.theta` is SETTABLE.
+    We store c,w as positive parameters represented in theta-space as log(c), log(w).
+    """
+
+    def __init__(self, k1, k2, location=50.0, width=5.0,
+                 location_bounds=(1e-3, 1e3), width_bounds=(1e-3, 1e3)):
+        self.k1 = k1
+        self.k2 = k2
+        self.location = float(location)
+        self.width = float(width)
+        self.location_bounds = location_bounds
+        self.width_bounds = width_bounds
+
+    # ---- required by sklearn optimizer / LML ----
+    @property
+    def theta(self):
+        return np.concatenate([
+            self.k1.theta,
+            self.k2.theta,
+            np.log([self.location, self.width]),
+        ])
+
+    @theta.setter
+    def theta(self, theta):
+        """Set hyperparameters from sklearn's theta vector (log-space)."""
+        theta = np.asarray(theta, float)
+        n1 = self.k1.theta.size
+        n2 = self.k2.theta.size
+
+        # update sub-kernels by delegating their theta setters
+        self.k1.theta = theta[:n1]
+        self.k2.theta = theta[n1:n1+n2]
+
+        # last two are log(location), log(width)
+        self.location = float(np.exp(theta[n1+n2]))
+        self.width    = float(np.exp(theta[n1+n2+1]))
+
+    @property
+    def bounds(self):
+        b1 = self.k1.bounds
+        b2 = self.k2.bounds
+        b_loc = np.log(np.asarray(self.location_bounds, float))[None, :]
+        b_w   = np.log(np.asarray(self.width_bounds, float))[None, :]
+        return np.vstack([b1, b2, b_loc, b_w])
+
+    # ---- kernel guts ----
+    def _sigmoid(self, X):
+        z = (X - self.location) / np.maximum(self.width, 1e-12)
+        out = np.empty_like(z, dtype=float)
+        pos = z >= 0
+        out[pos] = 1.0 / (1.0 + np.exp(-z[pos]))
+        ez = np.exp(z[~pos])
+        out[~pos] = ez / (1.0 + ez)
+        return out
+
+    def __call__(self, X, Y=None, eval_gradient=False):
+        X = np.atleast_2d(X)
+        if X.shape[1] != 1:
+            raise ValueError("ChangePointKernel expects 1D inputs of shape (N,1).")
+
+        if Y is None:
+            Y = X
+        else:
+            Y = np.atleast_2d(Y)
+
+        sX = self._sigmoid(X)  # (N,1)
+        sY = self._sigmoid(Y)  # (M,1)
+
+        S = sX @ sY.T
+        T = (1.0 - sX) @ (1.0 - sY).T
+
+        if not eval_gradient:
+            K1 = self.k1(X, Y, eval_gradient=False)
+            K2 = self.k2(X, Y, eval_gradient=False)
+            return S * K1 + T * K2
+
+        if Y is not X:
+            raise ValueError("Gradient can only be evaluated when Y is None.")
+
+        K1, G1 = self.k1(X, None, eval_gradient=True)
+        K2, G2 = self.k2(X, None, eval_gradient=True)
+        K = S * K1 + T * K2
+
+        s = sX
+        ds_dz = s * (1.0 - s)
+
+        dloc = (-1.0 / np.maximum(self.width, 1e-12)) * ds_dz
+        dwid = (-(X - self.location) / np.maximum(self.width, 1e-12)**2) * ds_dz
+
+        dS_dloc = dloc @ s.T + s @ dloc.T
+        dS_dwid = dwid @ s.T + s @ dwid.T
+
+        u = 1.0 - s
+        du_dloc = -dloc
+        du_dwid = -dwid
+
+        dT_dloc = du_dloc @ u.T + u @ du_dloc.T
+        dT_dwid = du_dwid @ u.T + u @ du_dwid.T
+
+        dK_dloc = dS_dloc * K1 + dT_dloc * K2
+        dK_dwid = dS_dwid * K1 + dT_dwid * K2
+
+        # theta uses log-params for positive vars: dK/dlog(p) = p * dK/dp
+        dK_dlogloc = self.location * dK_dloc
+        dK_dlogwid = self.width    * dK_dwid
+
+        G = np.concatenate(
+            [
+                S[:, :, None] * G1,
+                T[:, :, None] * G2,
+                dK_dlogloc[:, :, None],
+                dK_dlogwid[:, :, None],
+            ],
+            axis=2,
+        )
+        return K, G
+
+    def diag(self, X):
+        X = np.atleast_2d(X)
+        s = self._sigmoid(X).reshape(-1)
+        return (s**2) * self.k1.diag(X) + ((1.0 - s)**2) * self.k2.diag(X)
+
+    def is_stationary(self):
+        return False
+
 
 
 import numpy as np

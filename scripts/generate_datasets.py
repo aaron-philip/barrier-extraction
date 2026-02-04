@@ -15,7 +15,7 @@ os.makedirs(OUTDIR, exist_ok=True)
 # These correspond to mean spacings of 0.25, 0.5, 1.0, and 2.0 MeV
 mean_spacings = [0.25, 0.5, 1.0, 2.0]
 for spacing in mean_spacings:
-    for noise_ratio in [0.1, 0.01]:
+    for noise_ratio in [0.02, 0.01]:
         tag = f"res_{spacing:.2f}MeV_noise{noise_ratio}.npz"
         out_file = os.path.join(OUTDIR, tag)
         generate_datasets(

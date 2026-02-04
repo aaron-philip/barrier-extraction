@@ -349,3 +349,159 @@ def setup_logger(
     logger.propagate = False
     logger.info(f"Logger initialized -> {logfile}")
     return logger
+
+
+def _interp_crossing(x0, y0, x1, y1, y_target):
+    """Linear interpolation for y(x)=y_target between two points (x0,y0),(x1,y1)."""
+    if y1 == y0:
+        return 0.5*(x0+x1)
+    t = (y_target - y0) / (y1 - y0)
+    return x0 + t*(x1 - x0)
+
+def peak_metrics_anchored(E, Y, E0_true, window=6.0, smooth=None):
+    """
+    Find peak location/height/FWHM near E0_true, restricted to a window.
+
+    Parameters
+    ----------
+    E, Y : (n,) arrays
+    E0_true : float
+    window : float
+        Search in [E0_true-window, E0_true+window]
+    smooth : int or None
+        If int >= 3, apply simple moving-average smoothing of that width
+        (helps when D(E) from samples is noisy).
+
+    Returns
+    -------
+    (pk_loc, pk_ht, fwhm)
+    """
+    E = np.asarray(E, float)
+    Y = np.asarray(Y, float)
+    order = np.argsort(E)
+    E, Y = E[order], Y[order]
+
+    m = (E >= E0_true - window) & (E <= E0_true + window)
+    if m.sum() < 5:
+        return np.nan, np.nan, np.nan
+
+    Ew = E[m]
+    Yw = Y[m].copy()
+
+    # Optional smoothing (moving average)
+    if smooth is not None and int(smooth) >= 3 and int(smooth) < Yw.size:
+        k = int(smooth)
+        kern = np.ones(k)/k
+        Yw = np.convolve(Yw, kern, mode="same")
+
+    i_pk = int(np.argmax(Yw))
+    pk_loc = float(Ew[i_pk])
+    pk_ht  = float(Yw[i_pk])
+
+    if not np.isfinite(pk_ht) or pk_ht <= 0:
+        return pk_loc, pk_ht, np.nan
+
+    half = 0.5 * pk_ht
+
+    # Find left crossing: scan from peak down to left
+    left = np.nan
+    for i in range(i_pk, 0, -1):
+        if (Yw[i] >= half) and (Yw[i-1] < half):
+            left = _interp_crossing(Ew[i-1], Yw[i-1], Ew[i], Yw[i], half)
+            break
+
+    # Find right crossing: scan from peak down to right
+    right = np.nan
+    for i in range(i_pk, Yw.size - 1):
+        if (Yw[i] >= half) and (Yw[i+1] < half):
+            right = _interp_crossing(Ew[i], Yw[i], Ew[i+1], Yw[i+1], half)
+            break
+
+    if np.isfinite(left) and np.isfinite(right) and right > left:
+        fwhm = float(right - left)
+    else:
+        fwhm = np.nan
+
+    return pk_loc, pk_ht, fwhm
+
+
+import numpy as np
+
+def empirical_coverage(y_true, y_samples, level=0.68):
+    lo = np.percentile(y_samples, (1-level)/2*100, axis=0)
+    hi = np.percentile(y_samples, (1+level)/2*100, axis=0)
+    return float(np.mean((y_true >= lo) & (y_true <= hi)))
+
+def mae_rmse(y_true, y_pred):
+    err = (y_pred - y_true)
+    return float(np.mean(np.abs(err))), float(np.sqrt(np.mean(err**2)))
+
+def compute_metrics_for_fit(
+    x_pred, y_mean, y_samples,
+    E_data,
+    E0_true, R0_true, hw_true,
+    sigma_true_fn, barrier_from_sigma_samples_fn,
+    pad=2.0,
+    levels=(0.5, 0.68, 0.9, 0.95),
+    peak_window=6.0,
+    barrier_smooth=5,
+):
+    """
+    Computes sigma-space + barrier-space MAE/RMSE, empirical coverage, and anchored peak metrics.
+    Region is [min(E_data)-pad, max(E_data)+pad] evaluated on x_pred.
+    """
+    xmin = float(np.min(E_data) - pad)
+    xmax = float(np.max(E_data) + pad)
+    m = (x_pred >= xmin) & (x_pred <= xmax)
+    if m.sum() < 10:
+        return {}
+
+    x = x_pred[m]
+    ym = y_mean[m]
+    ys = y_samples[:, m]
+
+    # true sigma on x_pred region
+    ytrue = sigma_true_fn(x, E0=E0_true, R0=R0_true, hbarw=hw_true)
+
+    sigma_mae, sigma_rmse = mae_rmse(ytrue, ym)
+    out = {
+        "x_min": xmin,
+        "x_max": xmax,
+        "sigma_MAE": sigma_mae,
+        "sigma_RMSE": sigma_rmse,
+    }
+
+    for a in levels:
+        out[f"sigma_emp_cov_{int(a*100)}"] = empirical_coverage(ytrue, ys, level=a)
+
+    # Barrier distributions from sigma samples on the same x grid
+    D_samps = barrier_from_sigma_samples_fn(x, ys)                  # (nsamp, nx)
+    D_mean  = barrier_from_sigma_samples_fn(x, ym[None, :])[0]      # (nx,)
+    D_true  = barrier_from_sigma_samples_fn(x, ytrue[None, :])[0]   # (nx,)
+
+    b_mae, b_rmse = mae_rmse(D_true, D_mean)
+    out.update({
+        "barrier_MAE": b_mae,
+        "barrier_RMSE": b_rmse,
+    })
+
+    for a in levels:
+        out[f"barrier_emp_cov_{int(a*100)}"] = empirical_coverage(D_true, D_samps, level=a)
+
+    # Anchored peak metrics (in barrier space; that’s what you care about)
+    t_loc, t_ht, t_fwhm = peak_metrics_anchored(x, D_true, E0_true, window=peak_window, smooth=barrier_smooth)
+    p_loc, p_ht, p_fwhm = peak_metrics_anchored(x, D_mean, E0_true, window=peak_window, smooth=barrier_smooth)
+
+    out.update({
+        "barrier_peak_loc_true": t_loc,
+        "barrier_peak_ht_true": t_ht,
+        "barrier_fwhm_true": t_fwhm,
+        "barrier_peak_loc_pred": p_loc,
+        "barrier_peak_ht_pred": p_ht,
+        "barrier_fwhm_pred": p_fwhm,
+        "barrier_peak_loc_resid": (p_loc - t_loc) if np.isfinite(p_loc) and np.isfinite(t_loc) else np.nan,
+        "barrier_peak_ht_resid":  (p_ht - t_ht)  if np.isfinite(p_ht)  and np.isfinite(t_ht)  else np.nan,
+        "barrier_fwhm_resid":     (p_fwhm - t_fwhm) if np.isfinite(p_fwhm) and np.isfinite(t_fwhm) else np.nan,
+    })
+
+    return out

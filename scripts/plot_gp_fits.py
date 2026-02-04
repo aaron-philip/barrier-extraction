@@ -40,14 +40,17 @@ def plot_row(ax_sigma, ax_barrier, x, y_samples, y_mean,
     ax_sigma.set_xlabel("Energy [MeV]")
     ax_sigma.set_ylabel("σ(E)")
     ax_sigma.set_title(f"Fit #{fit_index}: σ(E)\nE0_fit={E0_fit:.2f}, E0_true={E0_true:.2f}")
+    ax_sigma.set_ylim(np.min(Sigma_data)-100, np.max(Sigma_data) + 400)
+
     ax_sigma.legend(frameon=False, fontsize=8)
 
     # ================= D(E) ====================
     for D in D_samples:
         ax_barrier.plot(x, D, color="gray", alpha=0.20, lw=0.7)
 
+    ax_barrier.plot(x, D_true, "b-", lw=2, label="True D(E)")
     ax_barrier.plot(x, D_mean, "r--", lw=2, label="Mean D(E)")
-    ax_barrier.plot(x, D_true, "b--", lw=2, label="True D(E)")
+
 
     # 68% band
     bands = percentile_bands(D_samples, levels=(0.68,))
@@ -58,7 +61,7 @@ def plot_row(ax_sigma, ax_barrier, x, y_samples, y_mean,
     ax_barrier.set_xlabel("Energy [MeV]")
     ax_barrier.set_ylabel("D(E)")
     ax_barrier.set_title(f"Fit #{fit_index}: Barrier Dist.")
-    ax_barrier.set_ylim(-1000, 2500)
+    ax_barrier.set_ylim(np.min(D_true)-200, np.max(D_true) + 1000)
     ax_barrier.legend(frameon=False, fontsize=8)
 
 

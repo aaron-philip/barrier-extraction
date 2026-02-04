@@ -27,7 +27,7 @@ fi
 # === Dataset selection ===
 DATAFILE=${FILES[$SLURM_ARRAY_TASK_ID]}
 BASENAME=$(basename "$DATAFILE" .h5)
-OUTH5="$RESULT_DIR/${BASENAME}_gp.h5"
+OUTH5="$RESULT_DIR/${BASENAME}_gp_rbf.h5"
 
 # === Activate environment right before Python ===
 source ~/.bashrc
