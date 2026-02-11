@@ -441,6 +441,7 @@ def compute_metrics_for_fit(
     E_data,
     E0_true, R0_true, hw_true,
     sigma_true_fn, barrier_from_sigma_samples_fn,
+    d2_samples=None,   # optional: (nsamp, len(x_pred)) JAX barrier samples
     pad=0.0,
     levels=(0, 0.25, 0.5, 0.68, 0.9, 0.95, 1.0),
     peak_window=6.0,
@@ -449,16 +450,21 @@ def compute_metrics_for_fit(
     """
     Computes sigma-space + barrier-space MAE/RMSE, empirical coverage, and anchored peak metrics.
     Region is [min(E_data)-pad, max(E_data)+pad] evaluated on x_pred.
+
+    If d2_samples is provided, barrier predictions come from it (BNN autodiff barrier);
+    otherwise barrier predictions are computed from sigma samples (GP path).
+    Truth barrier is ALWAYS computed from sigma_true via barrier_from_sigma_samples_fn
+    to keep metrics comparable across models.
     """
     xmin = float(np.min(E_data) - pad)
     xmax = float(np.max(E_data) + pad)
     m = (x_pred >= xmin) & (x_pred <= xmax)
-    if m.sum() < 10:
+    if int(np.sum(m)) < 10:
         return {}
 
-    x = x_pred[m]
-    ym = y_mean[m]
-    ys = y_samples[:, m]
+    x = np.asarray(x_pred, float)[m]
+    ym = np.asarray(y_mean, float)[m]
+    ys = np.asarray(y_samples, float)[:, m]
 
     # true sigma on x_pred region
     ytrue = sigma_true_fn(x, E0=E0_true, R0=R0_true, hbarw=hw_true)
@@ -474,10 +480,19 @@ def compute_metrics_for_fit(
     for a in levels:
         out[f"sigma_emp_cov_{int(a*100)}"] = empirical_coverage(ytrue, ys, level=a)
 
-    # Barrier distributions from sigma samples on the same x grid
-    D_samps = barrier_from_sigma_samples_fn(x, ys)                  # (nsamp, nx)
-    D_mean  = barrier_from_sigma_samples_fn(x, ym[None, :])[0]      # (nx,)
-    D_true  = barrier_from_sigma_samples_fn(x, ytrue[None, :])[0]   # (nx,)
+    # -------------------------
+    # Barrier predictions
+    # -------------------------
+    if d2_samples is not None:
+        d2 = np.asarray(d2_samples, float)
+        D_samps = d2[:, m]                        # (nsamp, nx_mask)
+        D_mean  = np.nanmean(D_samps, axis=0)     # (nx_mask,)
+    else:
+        D_samps = barrier_from_sigma_samples_fn(x, ys)              # (nsamp, nx_mask)
+        D_mean  = barrier_from_sigma_samples_fn(x, ym[None, :])[0]  # (nx_mask,)
+
+    # Truth barrier (keep consistent across GP/BNN)
+    D_true = barrier_from_sigma_samples_fn(x, ytrue[None, :])[0]    # (nx_mask,)
 
     b_mae, b_rmse = mae_rmse(D_true, D_mean)
     out.update({
@@ -488,9 +503,13 @@ def compute_metrics_for_fit(
     for a in levels:
         out[f"barrier_emp_cov_{int(a*100)}"] = empirical_coverage(D_true, D_samps, level=a)
 
-    # Anchored peak metrics (in barrier space; that’s what you care about)
-    t_loc, t_ht, t_fwhm = peak_metrics_anchored(x, D_true, E0_true, window=peak_window, smooth=barrier_smooth)
-    p_loc, p_ht, p_fwhm = peak_metrics_anchored(x, D_mean, E0_true, window=peak_window, smooth=barrier_smooth)
+    # Anchored peak metrics (barrier space)
+    t_loc, t_ht, t_fwhm = peak_metrics_anchored(
+        x, D_true, E0_true, window=peak_window, smooth=barrier_smooth
+    )
+    p_loc, p_ht, p_fwhm = peak_metrics_anchored(
+        x, D_mean, E0_true, window=peak_window, smooth=barrier_smooth
+    )
 
     out.update({
         "barrier_peak_loc_true": t_loc,
@@ -500,7 +519,7 @@ def compute_metrics_for_fit(
         "barrier_peak_ht_pred": p_ht,
         "barrier_fwhm_pred": p_fwhm,
         "barrier_peak_loc_resid": (p_loc - t_loc) if np.isfinite(p_loc) and np.isfinite(t_loc) else np.nan,
-        "barrier_peak_ht_resid":  (p_ht - t_ht)  if np.isfinite(p_ht)  and np.isfinite(t_ht)  else np.nan,
+        "barrier_peak_ht_resid":  (p_ht - t_ht)   if np.isfinite(p_ht)  and np.isfinite(t_ht)  else np.nan,
         "barrier_fwhm_resid":     (p_fwhm - t_fwhm) if np.isfinite(p_fwhm) and np.isfinite(t_fwhm) else np.nan,
     })
 

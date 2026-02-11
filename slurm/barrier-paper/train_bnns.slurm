@@ -76,7 +76,10 @@ fi
 source ~/.bashrc
 conda deactivate
 conda activate ~/envs/autobnn-reproduce2
-export JAX_PLATFORM=cpu
+
+# Force JAX to CPU and prevent any CUDA init attempt
+export JAX_PLATFORMS=cpu
+export CUDA_VISIBLE_DEVICES=""
 
 echo "Node: $(hostname)"
 echo "Dataset: $DATA_PATH"

@@ -14,7 +14,7 @@ from utils import setup_logger, load_packed_hdf5, compute_metrics_for_fit
 from train import make_x_pred, barrier_from_sigma_samples
 from wong import sigma as sigma_true
 
-from bnn_utils import compute_Df  # assumes this returns sigma samples on E_pred grid
+from bnn_utils import compute_Df_log  
 
 # autobnn import
 if "../../probability/spinoffs/autobnn" not in sys.path:
@@ -107,21 +107,12 @@ def main():
     # posterior predictive sigma samples on E_pred grid
     # -----------------------------
     logger.info("Computing posterior predictive sigma samples...")
-    # We assume compute_Df returns sigma samples in *sigma space* on E_pred.
-    # If it returns log-sigma samples instead, we’ll exponentiate below.
-    y_samples = compute_Df(bnn_mcmc, E_pred, scales)
+    y_samples, d2_samples = compute_Df_log(bnn_mcmc, E_pred, scales)
 
     y_samples = np.asarray(y_samples)
     if y_samples.ndim == 1:
         y_samples = y_samples[None, :]  # (1, M)
-
-    # Heuristic: if outputs look like log-sigma (can be negative), exponentiate
-    # (This keeps plotting script happy, which expects sigma > 0)
-    if np.nanmedian(y_samples) < 0:
-        y_samples = np.exp(y_samples)
-
     y_mean = np.mean(y_samples, axis=0)
-
     # -----------------------------
     # compute metrics (same function as GP workflow)
     # -----------------------------
@@ -135,6 +126,7 @@ def main():
         hw_true=float(params_true[2]),
         sigma_true_fn=sigma_true,
         barrier_from_sigma_samples_fn=barrier_from_sigma_samples,
+        d2_samples=d2_samples,
         pad=args.pad,
         peak_window=args.peak_window,
         barrier_smooth=args.barrier_smooth,

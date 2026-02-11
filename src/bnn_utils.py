@@ -42,8 +42,7 @@ def compute_Df(
 
 def compute_Df_log( bnn_est, x_pred: np.ndarray, scales: tuple, num_prune: int = 100 ) -> np.ndarray: 
     """ 
-    Compute second derivatives of x*f(x) for model trained to log(f(x)) via JAX for each MCMC sample.
-    Returns array of shape (num_prune, len(x_pred)). 
+    TO DO
     """ 
     x_scale, x_shift, y_scale, y_shift = scales
     X = x_pred 
@@ -56,13 +55,17 @@ def compute_Df_log( bnn_est, x_pred: np.ndarray, scales: tuple, num_prune: int =
     def g(params, x): 
         return x * f_sample(params, x) 
     grad2 = jax.grad(jax.grad(g, argnums=1), argnums=1) 
-    # vectorize 
+    # vectorize
+    sigma_all = jax.vmap(lambda p: jax.vmap(lambda x: f_sample(p, x))(X))(bnn_est.params_)
     all_d2 = jax.vmap(lambda p: jax.vmap(lambda x: grad2(p, x))(X))(bnn_est.params_) 
+    
+    sigma_all = np.asarray(sigma_all)
     all_d2 = np.array(all_d2) 
+
     # random prune 
     key = jax.random.PRNGKey(0) 
     idx = jax.random.choice(key, all_d2.shape[0], (num_prune,), replace=False) 
-    return all_d2[idx]
+    return sigma_all[idx], all_d2[idx]
 
 
 def save_bnn_params(params: dict, path: str) -> None:
