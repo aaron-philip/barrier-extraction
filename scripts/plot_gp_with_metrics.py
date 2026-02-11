@@ -47,11 +47,17 @@ def plot_row(ax_sigma, ax_barrier, x, y_samples, y_mean,
     """
 
     # ================= σ(E) ====================
-    for y in y_samples:
-        ax_sigma.plot(x, y, color="gray", alpha=0.20, lw=0.7)
+    
+    # 68% band for sigma samples
+    sbands = percentile_bands(y_samples, levels=(0.68,))
+    s_lo = sbands["lower_68"]
+    s_hi = sbands["upper_68"]
+    ax_sigma.fill_between(x, s_lo, s_hi, color="red", alpha=0.15, label="68% band")
 
+    # mean
     ax_sigma.plot(x, y_mean, "r--", lw=2, label="Mean σ(E)")
 
+    # data
     ax_sigma.errorbar(
         E_data, Sigma_data, yerr=Sigma_err_data,
         fmt="o", color="black", markersize=4, alpha=0.8,
@@ -61,7 +67,13 @@ def plot_row(ax_sigma, ax_barrier, x, y_samples, y_mean,
     ax_sigma.set_xlabel("Energy [MeV]")
     ax_sigma.set_ylabel("σ(E)")
     ax_sigma.set_title(f"Fit #{fit_index}: σ(E)\nE0_fit={E0_fit:.2f}, E0_true={E0_true:.2f}")
-    ax_sigma.set_ylim(np.min(Sigma_data)-100, np.max(Sigma_data) + 400)
+
+    # more stable limits (avoid weird behavior if Sigma_data has tiny range)
+    y_min = np.nanmin(np.concatenate([Sigma_data, s_lo, y_mean]))
+    y_max = np.nanmax(np.concatenate([Sigma_data, s_hi, y_mean]))
+    pad = 0.05 * (y_max - y_min + 1e-12)
+    ax_sigma.set_ylim(y_min - pad, y_max + pad)
+
     ax_sigma.legend(frameon=False, fontsize=8)
 
     # ================= D(E) ====================
@@ -101,9 +113,9 @@ def plot_row(ax_sigma, ax_barrier, x, y_samples, y_mean,
 # -------------------------------------------------------------------
 # Pick 5 indices from CSV and plot those fits from HDF5
 # -------------------------------------------------------------------
-def plot_random_5_from_csv(h5_path, csv_path, n_samples=5, seed=None):
+def plot_random_5_from_csv(h5_path, n_samples=5, seed=None):
     rng = np.random.default_rng(seed)
-
+    csv_path = h5_path + ".csv"
     df = pd.read_csv(csv_path)
     if "index" not in df.columns:
         raise ValueError("CSV must contain an 'index' column matching HDF5 group keys.")
@@ -169,9 +181,9 @@ def plot_random_5_from_csv(h5_path, csv_path, n_samples=5, seed=None):
             )
 
     plt.tight_layout()
-    out_png = f"{os.path.basename(h5_path)}__csv_cross.png"
+    out_png = f"../plots/{os.path.basename(h5_path)}_csv_cross.png"
     plt.savefig(out_png, dpi=300)
-    print(f"\nSaved → {out_png}")
+    print(f"\nSaved → ../plots/{out_png}")
     plt.show()
 
 
@@ -181,10 +193,10 @@ def plot_random_5_from_csv(h5_path, csv_path, n_samples=5, seed=None):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--h5", type=str, required=True, help="Path to GP .h5 results")
-    ap.add_argument("--csv", type=str, required=True, help="Path to metrics CSV produced by summary script")
+   # ap.add_argument("--csv", type=str, required=True, help="Path to metrics CSV produced by summary script")
     ap.add_argument("--n_samples", type=int, default=5, help="Number of random fits to plot (default 5)")
     ap.add_argument("--seed", type=int, default=None, help="RNG seed for reproducible sampling")
     args = ap.parse_args()
 
-    plot_random_5_from_csv(args.h5, args.csv, n_samples=args.n_samples, seed=args.seed)
+    plot_random_5_from_csv(args.h5, n_samples=args.n_samples, seed=args.seed)
 

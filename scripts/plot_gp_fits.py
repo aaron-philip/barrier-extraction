@@ -123,8 +123,8 @@ def plot_multiple_fits(h5_path, n_samples):
                      fit_index)
 
     plt.tight_layout()
-    plt.savefig(f"{os.path.basename(h5_path)}.png", dpi=300)
-    print(f"\nSaved → {os.path.basename(h5_path)}.png")
+    plt.savefig(f"../plots/{os.path.basename(h5_path)}.png", dpi=300)
+    print(f"\nSaved → ../plots/{os.path.basename(h5_path)}.png")
     plt.show()
 
 

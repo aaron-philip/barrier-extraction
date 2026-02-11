@@ -441,8 +441,8 @@ def compute_metrics_for_fit(
     E_data,
     E0_true, R0_true, hw_true,
     sigma_true_fn, barrier_from_sigma_samples_fn,
-    pad=2.0,
-    levels=(0.5, 0.68, 0.9, 0.95),
+    pad=0.0,
+    levels=(0, 0.25, 0.5, 0.68, 0.9, 0.95, 1.0),
     peak_window=6.0,
     barrier_smooth=5,
 ):

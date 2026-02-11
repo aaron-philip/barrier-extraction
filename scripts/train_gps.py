@@ -28,7 +28,7 @@ def main():
 
     # --- GP fit controls ---
     ap.add_argument("--log_every", type=int, default=50)
-    ap.add_argument("--n_restarts", type=int, default=2)          # GP optimizer restarts
+    ap.add_argument("--n_restarts", type=int, default=20)          # GP optimizer restarts
     ap.add_argument("--n_samples", type=int, default=500)         # posterior draws saved to HDF5
     ap.add_argument("--random_state", type=int, default=None)
 
@@ -75,7 +75,7 @@ def main():
                 # Fit a Wong to estimate where to changepoint (potentially update to treat fitted Wong as prior)
                 #popt, pcov, chi2= fit_wong_with_restarts(E_i, S_i, Se_i, n_restarts=5)
                 #E0 = popt[0]
-                k_right = 1.0*RBF(length_scale_bounds=(0.5, 10.0))
+                k_right = 1.0*RBF(length_scale_bounds=(1.0, 10.0))
                 #k_left = 1.0*RBF(length_scale_bounds=(0.5, 10.0))
 
                 res = fit_gp(
