@@ -117,6 +117,14 @@ def plot_random_5_from_csv(h5_path, n_samples=5, seed=None):
     rng = np.random.default_rng(seed)
     csv_path = h5_path + ".csv"
     df = pd.read_csv(csv_path)
+
+    # Filtering outlier fits
+    cutoff = 1000
+    print(f"Before MAE filter (<= {cutoff}): {len(df)} fits")
+    if "sigma_MAE" in df.columns:
+        df = df[pd.to_numeric(df["barrier_MAE"], errors="coerce") <= cutoff]
+    print(f"After MAE filter (<= {cutoff}): {len(df)} fits")
+
     if "index" not in df.columns:
         raise ValueError("CSV must contain an 'index' column matching HDF5 group keys.")
 
@@ -192,7 +200,7 @@ def plot_random_5_from_csv(h5_path, n_samples=5, seed=None):
 # -------------------------------------------------------------------
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--h5", type=str, required=True, help="Path to GP .h5 results")
+    ap.add_argument("--h5", type=str, required=True, help="Path to .h5 results")
    # ap.add_argument("--csv", type=str, required=True, help="Path to metrics CSV produced by summary script")
     ap.add_argument("--n_samples", type=int, default=5, help="Number of random fits to plot (default 5)")
     ap.add_argument("--seed", type=int, default=None, help="RNG seed for reproducible sampling")

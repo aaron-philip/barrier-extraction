@@ -28,6 +28,13 @@ def main():
     args = ap.parse_args()
 
     df = pd.read_csv(args.csv)
+    
+    # Filtering outlier fits
+    cutoff = 1000
+    print(f"Before MAE filter (<= {cutoff}): {len(df)} fits")
+    if "sigma_MAE" in df.columns:
+        df = df[pd.to_numeric(df["barrier_MAE"], errors="coerce") <= cutoff]
+    print(f"After MAE filter (<= {cutoff}): {len(df)} fits")
 
     # ---------------------------
     # Panel 1: empirical coverage
