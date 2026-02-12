@@ -25,16 +25,43 @@ def main():
     ap.add_argument("--which", choices=["barrier", "sigma", "both"], default="barrier",
                     help="Which empirical coverage columns to plot")
     ap.add_argument("--bins", type=int, default=40, help="Histogram bins")
+    ap.add_argument("--normalize", action="store_true",
+                    help="Normalize sigma MAE/RMSE by (hw_true * R0_true^2) using CSV columns hw_true, R0_true.")
+
     args = ap.parse_args()
 
     df = pd.read_csv(args.csv)
     
     # Filtering outlier fits
-    cutoff = 1000
+    cutoff = 20000
     print(f"Before MAE filter (<= {cutoff}): {len(df)} fits")
-    if "sigma_MAE" in df.columns:
-        df = df[pd.to_numeric(df["barrier_MAE"], errors="coerce") <= cutoff]
+    if "barrier_RMSE" in df.columns:
+        df = df[pd.to_numeric(df["barrier_RMSE"], errors="coerce") <= cutoff]
     print(f"After MAE filter (<= {cutoff}): {len(df)} fits")
+
+
+
+    # Optional normalization scale for sigma metrics: s = hw_true * R0_true^2
+    if args.normalize:
+        if ("hw_true" not in df.columns) or ("R0_true" not in df.columns):
+            raise ValueError("Need hw_true and R0_true columns in CSV for --normalize")
+
+        s = pd.to_numeric(df["hw_true"], errors="coerce") * (pd.to_numeric(df["R0_true"], errors="coerce") ** 2)
+        s = s.to_numpy(dtype=float)
+        s[~np.isfinite(s)] = np.nan
+        s[s == 0] = np.nan
+
+        # Create normalized sigma metrics (barrier left untouched)
+        if "sigma_MAE" in df.columns:
+            df["sigma_MAE_norm_hwR02"] = pd.to_numeric(df["sigma_MAE"], errors="coerce").to_numpy(dtype=float) / s
+        if "sigma_RMSE" in df.columns:
+            df["sigma_RMSE_norm_hwR02"] = pd.to_numeric(df["sigma_RMSE"], errors="coerce").to_numpy(dtype=float) / s
+        
+        # Create normalized sigma metrics (barrier left untouched)
+        if "barrier_MAE" in df.columns:
+            df["barrier_MAE_norm_hwR02"] = pd.to_numeric(df["barrier_MAE"], errors="coerce").to_numpy(dtype=float) / s
+        if "barrier_RMSE" in df.columns:
+            df["barrier_RMSE_norm_hwR02"] = pd.to_numeric(df["barrier_RMSE"], errors="coerce").to_numpy(dtype=float) / s
 
     # ---------------------------
     # Panel 1: empirical coverage
@@ -61,15 +88,24 @@ def main():
     # ---------------------------
     # Panels 2 & 3: histograms
     # ---------------------------
-    sigma_rmse = _finite(pd.to_numeric(df.get("sigma_RMSE"), errors="coerce").to_numpy())
-    sigma_mae  = _finite(pd.to_numeric(df.get("sigma_MAE"), errors="coerce").to_numpy())
-    barrier_rmse = _finite(pd.to_numeric(df.get("barrier_RMSE"), errors="coerce").to_numpy())
-    barrier_mae  = _finite(pd.to_numeric(df.get("barrier_MAE"), errors="coerce").to_numpy())
+    if args.normalize:
+        sigma_rmse = _finite(pd.to_numeric(df.get("sigma_RMSE_norm_hwR02"), errors="coerce").to_numpy())
+        sigma_mae  = _finite(pd.to_numeric(df.get("sigma_MAE_norm_hwR02"), errors="coerce").to_numpy())
+        barrier_rmse = _finite(pd.to_numeric(df.get("barrier_RMSE_norm_hwR02"), errors="coerce").to_numpy())
+        barrier_mae  = _finite(pd.to_numeric(df.get("barrier_MAE_norm_hwR02"), errors="coerce").to_numpy())
+    else:
+        sigma_rmse = _finite(pd.to_numeric(df.get("sigma_RMSE"), errors="coerce").to_numpy())
+        sigma_mae  = _finite(pd.to_numeric(df.get("sigma_MAE"), errors="coerce").to_numpy())
+        barrier_rmse = _finite(pd.to_numeric(df.get("barrier_RMSE"), errors="coerce").to_numpy())
+        barrier_mae  = _finite(pd.to_numeric(df.get("barrier_MAE"), errors="coerce").to_numpy())
 
     # choose which error distribution to histogram: barrier by default
     if args.which == "sigma":
         rmse_vals, mae_vals = sigma_rmse, sigma_mae
-        rmse_label, mae_label = "σ RMSE (per fit)", "σ MAE (per fit)"
+        if args.normalize:
+            rmse_label, mae_label = "σ RMSE / (hw·R0²) (per fit)", "σ MAE / (hw·R0²) (per fit)"
+        else:
+            rmse_label, mae_label = "σ RMSE (per fit)", "σ MAE (per fit)"
     elif args.which == "both":
         # concatenate for histograms (still per-fit values, mixed)
         rmse_vals = np.concatenate([sigma_rmse, barrier_rmse]) if (sigma_rmse.size and barrier_rmse.size) else (sigma_rmse if sigma_rmse.size else barrier_rmse)
@@ -77,7 +113,11 @@ def main():
         rmse_label, mae_label = "RMSE (σ + D mixed)", "MAE (σ + D mixed)"
     else:
         rmse_vals, mae_vals = barrier_rmse, barrier_mae
-        rmse_label, mae_label = "Barrier RMSE (per fit)", "Barrier MAE (per fit)"
+        if args.normalize:
+            rmse_label, mae_label = "Barrier RMSE / (hw·R0²) (per fit)", "Barrier MAE / (hw·R0²) (per fit)"
+        else:
+            rmse_label, mae_label = "Barrier RMSE (per fit)", "Barrier MAE (per fit)"
+
 
     # ---------------------------
     # Barrier peak residual summaries (for titles)
@@ -142,12 +182,12 @@ def main():
     )
 
     plt.tight_layout()
-    #if args.out:
-    plt.savefig("../plots/EC_1.0_20_"+os.path.basename(args.csv) +".pdf", dpi=300)
-    print(f"Saved -> {'../plots/EC_1.0_20_'+os.path.basename(args.csv) +'.pdf'}")
-   # else:
-   #     plt.show()
 
+    prefix = "norm_" if args.normalize else ""
+    out_pdf = f"/mnt/home/philipaa/research/barrier-extraction/plots/{prefix}EC_1.0_20_{os.path.basename(args.csv)}.pdf"
+    plt.savefig(out_pdf, dpi=300)
+    print(f"Saved -> {out_pdf}")
+    
 
 if __name__ == "__main__":
     main()

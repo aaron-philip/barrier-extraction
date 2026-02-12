@@ -9,6 +9,8 @@
 #SBATCH --partition=frib-nodes
 #SBATCH --array=0-99   # one per parameter sample
 
+
+# do not sbatch this directly; use submit_all_bnns.slurm.
 set -euo pipefail
 
 # === Directories ===

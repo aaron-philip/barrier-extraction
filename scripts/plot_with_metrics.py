@@ -189,7 +189,7 @@ def plot_random_5_from_csv(h5_path, n_samples=5, seed=None):
             )
 
     plt.tight_layout()
-    out_png = f"../plots/{os.path.basename(h5_path)}_csv_cross.png"
+    out_png = f"/mnt/home/philipaa/research/barrier-extraction/plots/{os.path.basename(h5_path)}_csv_cross.png"
     plt.savefig(out_png, dpi=300)
     print(f"\nSaved → {out_png}")
     plt.show()
