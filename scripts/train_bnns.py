@@ -27,6 +27,8 @@ def main():
     ap.add_argument("--data", required=True)
     ap.add_argument("--index", required=True, type=int,
                     help="Parameter-sample id (NOT raw dataset row). Actual row = index * stride.")
+    ap.add_argument("--sub_index", type=int, default=None,
+                help="Optional repeat/run id (e.g. 1-10) for multiple trainings of the same curve.")
     ap.add_argument("--stride", type=int, default=10,
                     help="Replicates per parameter sample (e.g. 10). Use row = index*stride.")
     ap.add_argument("--out_h5", required=True,
@@ -84,7 +86,12 @@ def main():
     # -----------------------------
     # build + train MCMC BNN
     # -----------------------------
-    seed = jax.random.PRNGKey(args.random_state)
+    if args.sub_index is None:
+        seed_int = int(args.random_state)
+    else:
+        seed_int = int(args.random_state) + 10_000 * int(args.index) + int(args.sub_index)
+
+    seed = jax.random.PRNGKey(seed_int)
     kernel = "sum_of_changepoints"
 
     bnn_mcmc = estimators.AutoBnnMCMCEstimator(
@@ -145,12 +152,18 @@ def main():
     parts_dir = out_base + ".parts"
     os.makedirs(parts_dir, exist_ok=True)
 
-    part_h5  = os.path.join(parts_dir, f"{int(args.index):05d}.h5")
-    part_csv = os.path.join(parts_dir, f"{int(args.index):05d}.csv")
+    if args.sub_index is None:
+        part_h5  = os.path.join(parts_dir, f"{int(args.index):05d}.h5")
+        part_csv = os.path.join(parts_dir, f"{int(args.index):05d}.csv")
+        group_name = str(int(args.index))
+    else:
+        part_h5  = os.path.join(parts_dir, f"{int(args.index):05d}_run{int(args.sub_index):02d}.h5")
+        part_csv = os.path.join(parts_dir, f"{int(args.index):05d}_run{int(args.sub_index):02d}.csv")
+        group_name = f"{int(args.index):05d}_run{int(args.sub_index):02d}"
 
     # Write part H5 with GP-compatible schema
     with h5py.File(part_h5, "w") as f:
-        grp = f.create_group(str(int(args.index)))
+        grp = f.create_group(group_name)
 
         grp.create_dataset("E_data", data=np.asarray(E_train, float))
         grp.create_dataset("Sigma_data", data=np.asarray(Sigma_train_raw, float))
@@ -174,6 +187,9 @@ def main():
             "R0_true": float(params_true[1]),
             "hw_true": float(params_true[2]),
         })
+        if args.sub_index is not None:
+            grp.attrs["sub_index"] = int(args.sub_index)
+            grp.attrs["seed_int"] = int(seed_int)
 
     # Write one-row part CSV
     import pandas as pd

@@ -37,6 +37,8 @@ def main():
     print(f"Before MAE filter (<= {cutoff}): {len(df)} fits")
     if "barrier_RMSE" in df.columns:
         df = df[pd.to_numeric(df["barrier_RMSE"], errors="coerce") <= cutoff]
+    else: 
+        print("No changes made")
     print(f"After MAE filter (<= {cutoff}): {len(df)} fits")
 
 
