@@ -17,8 +17,9 @@ from wong import sigma as sigma_true
 from bnn_utils import compute_Df_log  
 
 # autobnn import
-if "../../probability/spinoffs/autobnn" not in sys.path:
-    sys.path.insert(0, "../../probability/spinoffs/autobnn")
+if "/mnt/home/philipaa/research/probability/spinoffs/autobnn" not in sys.path:
+    sys.path.insert(0, "/mnt/home/philipaa/research/probability/spinoffs/autobnn")
+import autobnn
 from autobnn import estimators
 
 
@@ -33,11 +34,15 @@ def main():
                     help="Replicates per parameter sample (e.g. 10). Use row = index*stride.")
     ap.add_argument("--out_h5", required=True,
                     help="FINAL merged output H5 name (we will write parts into out_h5 + '.parts/')")
+    ap.add_argument("--extra", type=str, default=None)
+    ap.add_argument("--likelihood_model", type=str, default="normal_likelihood_lognormal_noise",)
+    ap.add_argument("--kernel", type=str, default="sum_of_changepoints", help="Kernel for BNN (default: sum_of_changepoints)")
+   # ap.add_argument("--periods", type=float, nargs="+", default=(0.0,), help="Periods for sum-of-changepoints kernel (default: [0.0])")
 
     # BNN hyperparams
     ap.add_argument("--width", type=int, default=50)
     ap.add_argument("--num_chains", type=int, default=4)
-    ap.add_argument("--num_draws", type=int, default=50)
+    ap.add_argument("--num_draws", type=int, default=1000)
     ap.add_argument("--num_warmup", type=int, default=1000)
     ap.add_argument("--random_state", type=int, default=0)
 
@@ -92,12 +97,13 @@ def main():
         seed_int = int(args.random_state) + 10_000 * int(args.index) + int(args.sub_index)
 
     seed = jax.random.PRNGKey(seed_int)
-    kernel = "sum_of_changepoints"
+
 
     bnn_mcmc = estimators.AutoBnnMCMCEstimator(
-        kernel,
-        likelihood_model="normal_likelihood_lognormal_noise",
+        args.kernel,
+        likelihood_model=args.likelihood_model,
         seed=seed,
+        periods = (E_train.max()-E_train.min(),),
         width=args.width,
         num_chains=args.num_chains,
         num_draws=args.num_draws,
@@ -106,8 +112,15 @@ def main():
     )
 
     logger.info("Training MCMC BNN...")
+    
     t0 = time.time()
-    bnn_mcmc = bnn_mcmc.fit(x_norm, y_norm)
+    if args.likelihood_model == "normal_likelihood_known_noise":
+        std_log = Sigma_err_raw / np.maximum(Sigma_train_raw, 1e-30)     # shape (N,)
+        std_log_norm = (std_log / y_scale)[..., None]               # shape (N,1)
+        obs_train = np.concatenate([y_norm, std_log_norm], axis=1)    # (N,2)
+        bnn_mcmc = bnn_mcmc.fit(x_norm, obs_train)
+    else:
+        bnn_mcmc = bnn_mcmc.fit(x_norm, y_norm)
     logger.info(f"MCMC training done in {time.time() - t0:.2f} s")
 
     # -----------------------------
@@ -121,7 +134,7 @@ def main():
         y_samples = y_samples[None, :]  # (1, M)
     y_mean = np.mean(y_samples, axis=0)
     # -----------------------------
-    # compute metrics (same function as GP workflow)
+    # compute metrics (only useful for Wong curves)
     # -----------------------------
     met = compute_metrics_for_fit(
         x_pred=E_pred,
@@ -149,6 +162,8 @@ def main():
     # write PART outputs (safe for arrays)
     # -----------------------------
     out_base = args.out_h5
+    if args.extra is not None:
+        out_base += f"_{args.extra}"
     parts_dir = out_base + ".parts"
     os.makedirs(parts_dir, exist_ok=True)
 
@@ -172,6 +187,7 @@ def main():
         grp.create_dataset("x_pred", data=np.asarray(E_pred, float))
         grp.create_dataset("y_mean", data=np.asarray(y_mean, float))
         grp.create_dataset("y_samples", data=np.asarray(y_samples, float), compression="gzip")
+        grp.create_dataset("d2_samples", data=np.asarray(d2_samples, float), compression="gzip")
 
         grp.attrs.update({
             "width": int(args.width),
@@ -200,6 +216,8 @@ def main():
     logger.info(f"  wrote part CSV -> {part_csv}")
 
     ds["file"].close()
+
+    print("BNN Diagnostics", bnn_mcmc.diagnostics_)
 
 
 if __name__ == "__main__":

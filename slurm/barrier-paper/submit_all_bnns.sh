@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
-RESULT_DIR=/mnt/home/philipaa/scratch/barrier-paper-results
+RESULT_DIR=/mnt/home/philipaa/scratch/barrier-paper-results/bnns_with_df
 LOG_DIR=/mnt/home/philipaa/scratch/barrier-paper-logs
 
 TRAIN_SLURM=/mnt/research/ascsn/aaron-philip/barrier-extraction/slurm/barrier-paper/train_bnns.slurm

@@ -8,7 +8,6 @@ import scipy
 if "../src" not in sys.path:
     sys.path.append("../src")  
 
-from bnn_utils import compute_Df
 from utils import compute_all_metrics, barrier_dist
 from wong import sigma
 
@@ -116,7 +115,6 @@ def percentile_bands(samples, levels=(0.68, 0.95)):
         out[f"lower_{int(lev*100)}"] = lo
         out[f"upper_{int(lev*100)}"] = hi
     return out
-
 
 def barrier_from_sigma_samples(x_pred, y_samples):
     """Compute second derivative of E*sigma for each sample."""

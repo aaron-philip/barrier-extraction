@@ -2,9 +2,9 @@
 #SBATCH --job-name=gp_train
 #SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/gp_%A_%a.out
 #SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/gp_%A_%a.err
-#SBATCH --time=02:00:00
+#SBATCH --time=05:00:00
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=1
 #SBATCH --mem=16G
 #SBATCH --partition=standard
 

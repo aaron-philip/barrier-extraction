@@ -2,7 +2,7 @@
 #SBATCH --job-name=bnn_train
 #SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_%A_%a.out
 #SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_%A_%a.err
-#SBATCH --time=02:00:00
+#SBATCH --time=03:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=128G
@@ -15,7 +15,7 @@ set -euo pipefail
 
 # === Directories ===
 DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
-RESULT_DIR=/mnt/home/philipaa/scratch/barrier-paper-results
+RESULT_DIR=/mnt/home/philipaa/scratch/barrier-paper-results/bnns_with_df
 LOG_DIR=/mnt/home/philipaa/scratch/barrier-paper-logs
 mkdir -p "$RESULT_DIR" "$LOG_DIR"
 

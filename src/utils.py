@@ -1,7 +1,5 @@
 import numpy as np
 import findiff as fd
-import jax.numpy as jnp
-import pandas as pd
 import os
 import sys
 import logging
