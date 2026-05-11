@@ -23,6 +23,30 @@ import autobnn
 from autobnn import estimators
 
 
+def _build_d3_penalty_kwargs(args, e_grid, x_scale, x_shift, y_scale, y_shift):
+    """Build third-derivative penalty kwargs for AutoBNN."""
+    if args.d3_lambda <= 0.0:
+        return {}
+    if np.asarray(e_grid).size < 5:
+        raise ValueError("Third-derivative penalty requires at least 5 grid points.")
+
+    x_penalty = ((np.asarray(e_grid, dtype=float) - x_shift) / x_scale)[..., None]
+    penalty_lambda = float(args.d3_lambda)
+    if args.d3_lambda_space == "physical":
+        # The AutoBNN penalty is computed in normalized x-space. Rescale so the
+        # CLI lambda corresponds to derivatives with respect to the original
+        # energy axis instead.
+        penalty_lambda /= float(x_scale) ** 6
+
+    return {
+        "penalty_x_grid": x_penalty,
+        "penalty_lambda": penalty_lambda,
+        "penalty_use_sigma_space": args.d3_on_sigma,
+        "penalty_y_scale": y_scale,
+        "penalty_y_shift": y_shift,
+    }
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", required=True)
@@ -50,6 +74,19 @@ def main():
     ap.add_argument("--pad", type=float, default=2.0)
     ap.add_argument("--peak_window", type=float, default=6.0)
     ap.add_argument("--barrier_smooth", type=int, default=5)
+
+    # penalty controls
+    ap.add_argument("--d3_lambda", type=float, default=0.0)
+    ap.add_argument("--d3_on_sigma", action="store_true")
+    ap.add_argument(
+        "--d3_lambda_space",
+        choices=("physical", "normalized"),
+        default="physical",
+        help=(
+            "Interpret --d3_lambda in physical energy units or normalized "
+            "training-x units."
+        ),
+    )
 
     args = ap.parse_args()
 
@@ -87,6 +124,14 @@ def main():
     x_norm = ((E_train - x_shift) / x_scale)[..., None]
     y_norm = ((Sigma_train_log - y_shift) / y_scale)[..., None]
     scales = (x_scale, x_shift, y_scale, y_shift)
+    d3_penalty_kwargs = _build_d3_penalty_kwargs(
+        args=args,
+        e_grid=E_pred,
+        x_scale=x_scale,
+        x_shift=x_shift,
+        y_scale=y_scale,
+        y_shift=y_shift,
+    )
 
     # -----------------------------
     # build + train MCMC BNN
@@ -98,17 +143,25 @@ def main():
 
     seed = jax.random.PRNGKey(seed_int)
 
+    if d3_penalty_kwargs:
+        logger.info(
+            "Using d3 penalty: lambda=%s (%s x-space), sigma_space=%s",
+            args.d3_lambda,
+            args.d3_lambda_space,
+            args.d3_on_sigma,
+        )
 
     bnn_mcmc = estimators.AutoBnnMCMCEstimator(
         args.kernel,
         likelihood_model=args.likelihood_model,
         seed=seed,
-        periods = (E_train.max()-E_train.min(),),
+        periods=(E_train.max() - E_train.min(),),
         width=args.width,
         num_chains=args.num_chains,
         num_draws=args.num_draws,
         num_warmup=args.num_warmup,
         distributed=1,
+        **d3_penalty_kwargs,
     )
 
     logger.info("Training MCMC BNN...")
@@ -202,6 +255,14 @@ def main():
             "E0_true": float(params_true[0]),
             "R0_true": float(params_true[1]),
             "hw_true": float(params_true[2]),
+            "d3_lambda": float(args.d3_lambda),
+            "d3_on_sigma": bool(args.d3_on_sigma),
+            "d3_lambda_space": args.d3_lambda_space,
+            "d3_penalty_active": bool(d3_penalty_kwargs),
+            "x_scale": float(x_scale),
+            "x_shift": float(x_shift),
+            "y_scale": float(y_scale),
+            "y_shift": float(y_shift),
         })
         if args.sub_index is not None:
             grp.attrs["sub_index"] = int(args.sub_index)
