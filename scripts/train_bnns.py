@@ -20,7 +20,7 @@ from bnn_utils import compute_Df_log
 if "/mnt/home/philipaa/research/probability/spinoffs/autobnn" not in sys.path:
     sys.path.insert(0, "/mnt/home/philipaa/research/probability/spinoffs/autobnn")
 import autobnn
-from autobnn import estimators
+from autobnn import estimators, training_util
 
 
 def _build_d3_penalty_kwargs(args, e_grid, x_scale, x_shift, y_scale, y_shift):
@@ -44,6 +44,47 @@ def _build_d3_penalty_kwargs(args, e_grid, x_scale, x_shift, y_scale, y_shift):
         "penalty_use_sigma_space": args.d3_on_sigma,
         "penalty_y_scale": y_scale,
         "penalty_y_shift": y_shift,
+    }
+
+
+def _compute_d3_loss_diagnostics(bnn_est, x_train, y_train, d3_penalty_kwargs):
+    """Compute base loss, penalty loss, and their ratio for posterior samples."""
+    params_batch = bnn_est.params_
+
+    base_loss_fn = jax.jit(
+        jax.vmap(lambda p: -bnn_est.net_.log_prob(p, data=x_train, observations=y_train))
+    )
+    base_losses = np.asarray(base_loss_fn(params_batch))
+
+    if d3_penalty_kwargs:
+        penalty_loss_fn = jax.jit(
+            jax.vmap(
+                lambda p: training_util.third_derivative_penalty_on_grid(
+                    net=bnn_est.net_,
+                    params=p,
+                    x_grid=d3_penalty_kwargs["penalty_x_grid"],
+                    lam=d3_penalty_kwargs["penalty_lambda"],
+                    use_sigma_space=d3_penalty_kwargs["penalty_use_sigma_space"],
+                    y_scale=d3_penalty_kwargs["penalty_y_scale"],
+                    y_shift=d3_penalty_kwargs["penalty_y_shift"],
+                )
+            )
+        )
+        d3_losses = np.asarray(penalty_loss_fn(params_batch))
+    else:
+        d3_losses = np.zeros_like(base_losses)
+
+    denom = np.maximum(np.abs(base_losses), 1e-12)
+    d3_relative = d3_losses / denom
+
+    return {
+        "base_loss_samples": base_losses,
+        "d3_penalty_loss_samples": d3_losses,
+        "d3_to_base_loss_ratio_samples": d3_relative,
+        "base_loss_mean": float(np.mean(base_losses)),
+        "d3_penalty_loss_mean": float(np.mean(d3_losses)),
+        "d3_to_base_loss_ratio_mean": float(np.mean(d3_relative)),
+        "d3_to_base_loss_ratio_median": float(np.median(d3_relative)),
     }
 
 
@@ -171,10 +212,24 @@ def main():
         std_log = Sigma_err_raw / np.maximum(Sigma_train_raw, 1e-30)     # shape (N,)
         std_log_norm = (std_log / y_scale)[..., None]               # shape (N,1)
         obs_train = np.concatenate([y_norm, std_log_norm], axis=1)    # (N,2)
-        bnn_mcmc = bnn_mcmc.fit(x_norm, obs_train)
     else:
-        bnn_mcmc = bnn_mcmc.fit(x_norm, y_norm)
+        obs_train = y_norm
+    bnn_mcmc = bnn_mcmc.fit(x_norm, obs_train)
     logger.info(f"MCMC training done in {time.time() - t0:.2f} s")
+
+    logger.info("Computing D3/base-loss diagnostics on posterior samples...")
+    d3_loss_diag = _compute_d3_loss_diagnostics(
+        bnn_est=bnn_mcmc,
+        x_train=x_norm,
+        y_train=obs_train,
+        d3_penalty_kwargs=d3_penalty_kwargs,
+    )
+    logger.info(
+        "Mean base loss %.6g, mean d3 penalty %.6g, mean relative ratio %.6g",
+        d3_loss_diag["base_loss_mean"],
+        d3_loss_diag["d3_penalty_loss_mean"],
+        d3_loss_diag["d3_to_base_loss_ratio_mean"],
+    )
 
     # -----------------------------
     # posterior predictive sigma samples on E_pred grid
@@ -241,6 +296,21 @@ def main():
         grp.create_dataset("y_mean", data=np.asarray(y_mean, float))
         grp.create_dataset("y_samples", data=np.asarray(y_samples, float), compression="gzip")
         grp.create_dataset("d2_samples", data=np.asarray(d2_samples, float), compression="gzip")
+        grp.create_dataset(
+            "base_loss_samples",
+            data=np.asarray(d3_loss_diag["base_loss_samples"], float),
+            compression="gzip",
+        )
+        grp.create_dataset(
+            "d3_penalty_loss_samples",
+            data=np.asarray(d3_loss_diag["d3_penalty_loss_samples"], float),
+            compression="gzip",
+        )
+        grp.create_dataset(
+            "d3_to_base_loss_ratio_samples",
+            data=np.asarray(d3_loss_diag["d3_to_base_loss_ratio_samples"], float),
+            compression="gzip",
+        )
 
         grp.attrs.update({
             "width": int(args.width),
@@ -259,6 +329,10 @@ def main():
             "d3_on_sigma": bool(args.d3_on_sigma),
             "d3_lambda_space": args.d3_lambda_space,
             "d3_penalty_active": bool(d3_penalty_kwargs),
+            "base_loss_mean": d3_loss_diag["base_loss_mean"],
+            "d3_penalty_loss_mean": d3_loss_diag["d3_penalty_loss_mean"],
+            "d3_to_base_loss_ratio_mean": d3_loss_diag["d3_to_base_loss_ratio_mean"],
+            "d3_to_base_loss_ratio_median": d3_loss_diag["d3_to_base_loss_ratio_median"],
             "x_scale": float(x_scale),
             "x_shift": float(x_shift),
             "y_scale": float(y_scale),

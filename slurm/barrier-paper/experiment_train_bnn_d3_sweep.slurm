@@ -68,16 +68,16 @@ DATASET_NAMES=(
 # Third-derivative penalty strengths to sweep over.
 # Keep the tag strings filesystem-safe and easy to read.
 D3_LAMBDAS=(
-  "0.0"
-  "1e-6"
-  "1e-4"
-  "1e-2"
+  "1e-1"
+  "1.0"
+  "1e2"
+  "1e3"
 )
 D3_TAGS=(
-  "0"
-  "1e-6"
-  "1e-4"
-  "1e-2"
+  "1e-1"
+  "1"
+  "1e2"
+  "1e3"
 )
 # ============================================================
 
