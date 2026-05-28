@@ -12,6 +12,7 @@ matplotlib==3.9.2
 h5py==3.12.1
 jax[cuda12]==0.5.3
 bayeux-ml==0.1.15
+protobuf==4.25.3
 findiff==0.12.1
 SciencePlots==2.1.1
 pyyaml==6.0.2
