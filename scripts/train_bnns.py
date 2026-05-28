@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import os, sys, time
 import argparse
+from pathlib import Path
 import h5py
 import numpy as np
 import jax
 
 # project imports
-SRC = "/mnt/research/ascsn/aaron-philip/barrier-extraction/src"
+SRC = str(Path(__file__).resolve().parents[1] / "src")
 if SRC not in sys.path:
     sys.path.append(SRC)
 
@@ -17,8 +18,6 @@ from wong import sigma as sigma_true
 from bnn_utils import compute_Df_log  
 
 # autobnn import
-if "/mnt/home/philipaa/research/probability/spinoffs/autobnn" not in sys.path:
-    sys.path.insert(0, "/mnt/home/philipaa/research/probability/spinoffs/autobnn")
 import autobnn
 from autobnn import estimators, training_util
 

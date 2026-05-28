@@ -2,9 +2,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pickle
-import sys
-if "/mnt/home/philipaa/research/probability/spinoffs/autobnn" not in sys.path:
-    sys.path.insert(0, "/mnt/home/philipaa/research/probability/spinoffs/autobnn")
 
 import autobnn
 from autobnn import estimators, training_util

@@ -1,0 +1,17 @@
+# Paper-release dependency pins.
+#
+# AutoBNN is installed from the barrier-extraction fork. This commit is the
+# fork snapshot whose autobnn/ package matches the current local modified
+# AutoBNN source used for the barrier-extraction experiments.
+autobnn @ git+ssh://git@github.com/aaron-philip/autobnn-barrier.git@d9bc1bdd7b0fd3197eea8af7c22f473ce85c0eb5
+
+numpy==1.26.4
+scipy==1.14.1
+pandas==2.2.3
+matplotlib==3.9.2
+h5py==3.12.1
+jax[cuda12]==0.5.3
+bayeux-ml==0.1.15
+findiff==0.12.1
+SciencePlots==2.1.1
+pyyaml==6.0.2
