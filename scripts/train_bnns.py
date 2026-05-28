@@ -351,7 +351,7 @@ def main():
 
     ds["file"].close()
 
-    print("BNN Diagnostics", bnn_mcmc.diagnostics_)
+    logger.info("BNN diagnostics keys: %s", sorted(bnn_mcmc.diagnostics_.keys()))
 
 
 if __name__ == "__main__":
