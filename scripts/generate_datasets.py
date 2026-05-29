@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import os
 import sys
-if "/mnt/research/ascsn/aaron-philip/barrier-extraction/src" not in sys.path:
-    sys.path.append("/mnt/research/ascsn/aaron-philip/barrier-extraction/src")  
+from pathlib import Path
+
+SRC = Path(__file__).resolve().parents[1] / "src"
+if str(SRC) not in sys.path:
+    sys.path.append(str(SRC))
 from generator import generate_datasets
 
 # Base output directory

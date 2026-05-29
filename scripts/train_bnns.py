@@ -106,7 +106,7 @@ def main():
     # BNN hyperparams
     ap.add_argument("--width", type=int, default=50)
     ap.add_argument("--num_chains", type=int, default=4)
-    ap.add_argument("--num_draws", type=int, default=1000)
+    ap.add_argument("--num_draws", type=int, default=100)
     ap.add_argument("--num_warmup", type=int, default=1000)
     ap.add_argument("--random_state", type=int, default=0)
 

@@ -4,7 +4,6 @@ from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
 from scipy.optimize import curve_fit
 import pandas as pd
 import sys
-import scipy
 if "../src" not in sys.path:
     sys.path.append("../src")  
 

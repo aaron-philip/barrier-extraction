@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import os, sys, time
+from pathlib import Path
 import numpy as np
 import argparse
 import h5py
 
 # Import project modules
-if "/mnt/research/ascsn/aaron-philip/barrier-extraction/src" not in sys.path:
-    sys.path.append("/mnt/research/ascsn/aaron-philip/barrier-extraction/src")
+SRC = Path(__file__).resolve().parents[1] / "src"
+if str(SRC) not in sys.path:
+    sys.path.append(str(SRC))
 
 from train import fit_wong
 from utils import setup_logger, load_packed_hdf5

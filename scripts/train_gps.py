@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os, sys, time
+from pathlib import Path
 import numpy as np
 import argparse
 import h5py
@@ -9,9 +10,9 @@ from sklearn.gaussian_process.kernels import RBF  # RationalQuadratic if you wan
 # -------------------------------------------------------------------
 # project imports
 # -------------------------------------------------------------------
-SRC = "/mnt/research/ascsn/aaron-philip/barrier-extraction/src"
-if SRC not in sys.path:
-    sys.path.append(SRC)
+SRC = Path(__file__).resolve().parents[1] / "src"
+if str(SRC) not in sys.path:
+    sys.path.append(str(SRC))
 
 from utils import setup_logger, load_packed_hdf5, compute_metrics_for_fit
 from train import fit_gp  # ChangePointKernel, fit_wong_with_restarts if you re-enable them
