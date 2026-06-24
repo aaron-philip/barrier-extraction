@@ -83,7 +83,7 @@ from scipy.optimize import curve_fit
 
 out_file = Path(sys.argv[1])
 data_dir = Path(sys.argv[2])
-exp_dir = data_dir.parents[1] / "barrier-distribution-sample" / "16O208Pb_exp"
+exp_dir = data_dir / "experimental" / "16O208Pb_exp"
 
 def sigma(E, E0, R0, hbarw):
     return 10.0 * (0.5 * R0**2 * hbarw / E) * np.log(
