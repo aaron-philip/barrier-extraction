@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""This script trains Gaussian Process (GP) models to Wong datasets that have been packed into a single HDF5 file.
+This is the script called by given slurm scripts."""
 import os, sys, time
 from pathlib import Path
 import numpy as np

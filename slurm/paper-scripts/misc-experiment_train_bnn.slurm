@@ -1,5 +1,5 @@
 #!/bin/bash --login
-#SBATCH --job-name=bnn_train_8x10
+#SBATCH --job-name=bnn_train_4x10
 #SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_rep_%A_%a.out
 #SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_rep_%A_%a.err
 #SBATCH --time=08:00:00
@@ -9,15 +9,17 @@
 #SBATCH --partition=frib-nodes
 #SBATCH --array=0-39   # 4 datasets * 10 reps  => task_id = 0..39
 
-# Trains 10 models per curve for 4 curves in ONE dataset H5.
-# Each SLURM task picks:
+# Train one sum_of_changepoints BNN 10 times on each of the 4 experimental
+# datasets, 
 #   curve_id = task_id // 10   in [0..3]
 #   rep_id   = task_id % 10    in [0..9]  (passed as --sub_index)
 #
 # Submit like:
-#   sbatch --export=ALL,DATAFILE=experiments.h5 experiment_train_bnn.slurm
+#   sbatch --export=ALL,DATAFILE=experiments.h5 \
+#     slurm/paper-scripts/misc-experiment_train_bnn.slurm
 # or:
-#   sbatch --export=ALL,DATAFILE=/full/path/experiments.h5 experiment_train_bnn.slurm
+#   sbatch --export=ALL,DATAFILE=/full/path/experiments.h5 \
+#     slurm/paper-scripts/misc-experiment_train_bnn.slurm
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
@@ -110,6 +112,8 @@ python "$REPO_DIR/scripts/train_bnns.py" \
   --num_warmup 1000 \
   --extra "4x100_lognormal_soc" \
   --likelihood_model "normal_likelihood_lognormal_noise" \
-  --kernel "sum_of_changepoints"
+  --kernel "sum_of_changepoints" \
+  --d3_lambda 1.0 \
+  --d3_lambda_space physical
 
 echo "Done curve_id=$CURVE_ID rep_id=$REP_ID -> $OUTFILE"

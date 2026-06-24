@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""This script merges the part HDF5 and CSV files produced by train_bnns.py into a single HDF5 and CSV file."""
 import os, sys, argparse, glob
 import h5py
 import pandas as pd

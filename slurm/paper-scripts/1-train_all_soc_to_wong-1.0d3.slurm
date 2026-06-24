@@ -1,7 +1,7 @@
 #!/bin/bash --login
-#SBATCH --job-name=bnn_train_d3lam1e1
-#SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_d3lam1e1_%A_%a.out
-#SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_d3lam1e1_%A_%a.err
+#SBATCH --job-name=bnn_train_d3lam1
+#SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_d3lam1_%A_%a.out
+#SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_d3lam1_%A_%a.err
 #SBATCH --time=06:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -10,7 +10,19 @@
 #SBATCH --array=0-99   # one per parameter sample
 
 
-# Do not sbatch this directly; use slurm/paper-scripts/submit_all_soc_trains_to_wong_d31e1.sh.
+# Train one parameter sample from a Wong toy dataset with the
+# sum_of_changepoints BNN and third-derivative penalty lambda = 1.0.
+#
+# Usual full-paper run:
+#   sbatch slurm/paper-scripts/1-run_soc_wong_submitter-1.0d3.slurm
+#
+# To run the full pipeline from a login shell:
+#   bash slurm/paper-scripts/1-submit_all_soc_trains_to_wong-1.0d3.sh
+#
+# To run one dataset manually, pass DATAFILE as either a basename from
+# DATA_DIR or an absolute path:
+#   sbatch --array=0-99 --export=ALL,DATAFILE=cv0.25_spacing1.0.h5 \
+#     slurm/paper-scripts/1-train_all_soc_to_wong-1.0d3.slurm
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
@@ -18,7 +30,7 @@ export REPO_DIR
 
 # === Directories ===
 DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
-RESULT_ROOT=/mnt/home/philipaa/scratch/barrier-paper-results/d3lambda1e1_rerun
+RESULT_ROOT=/mnt/home/philipaa/scratch/barrier-paper-results/d3lambda1_rerun
 RESULT_DIR="$RESULT_ROOT/bnns_with_df"
 LOG_DIR=/mnt/home/philipaa/scratch/barrier-paper-logs
 mkdir -p "$RESULT_DIR" "$LOG_DIR"
@@ -43,7 +55,7 @@ if [ ! -f "$DATA_PATH" ]; then
 fi
 
 BASENAME=$(basename "$DATA_PATH" .h5)
-OUTFILE="$RESULT_DIR/${BASENAME}_bnn_soc_d3lam1e1.h5"
+OUTFILE="$RESULT_DIR/${BASENAME}_bnn_soc_d3lam1.h5"
 
 submit_sbatch () {
   local output status job_id
@@ -81,9 +93,9 @@ if [ -z "${SLURM_ARRAY_TASK_ID:-}" ]; then
   echo "Submitting merge job dependent on array completion..."
   MERGE_JOB_ID=$(submit_sbatch sbatch --parsable \
     --dependency=afterok:${ARRAY_JOB_ID} \
-    --job-name=bnn_merge_d3lam1e1 \
-    --output="$LOG_DIR/bnn_merge_d3lam1e1_${BASENAME}_%j.out" \
-    --error="$LOG_DIR/bnn_merge_d3lam1e1_${BASENAME}_%j.err" \
+    --job-name=bnn_merge_d3lam1 \
+    --output="$LOG_DIR/bnn_merge_d3lam1_${BASENAME}_%j.out" \
+    --error="$LOG_DIR/bnn_merge_d3lam1_${BASENAME}_%j.err" \
     --time=00:20:00 \
     --ntasks=1 \
     --cpus-per-task=1 \
@@ -110,7 +122,7 @@ echo "Node: $(hostname)"
 echo "Dataset: $DATA_PATH"
 echo "Output:  $OUTFILE"
 echo "Param index: $SLURM_ARRAY_TASK_ID"
-echo "d3 lambda: 10.0"
+echo "d3 lambda: 1.0"
 echo "d3 lambda space: physical"
 echo "num draws: 50"
 
@@ -120,7 +132,7 @@ python "$REPO_DIR/scripts/train_bnns.py" \
   --stride 10 \
   --out_h5 "$OUTFILE" \
   --num_draws 50 \
-  --d3_lambda 10.0 \
+  --d3_lambda 1.0 \
   --d3_lambda_space physical
 
 echo "Done param index $SLURM_ARRAY_TASK_ID"

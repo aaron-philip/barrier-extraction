@@ -9,8 +9,8 @@
 #SBATCH --partition=frib-nodes
 #SBATCH --array=0-159
 
-# Train the four AutoBNN model types used by notebooks/BNNDataAnalysis.ipynb
-# on the four datasets in its final two comparison figures, with d3 lambda=1e1.
+# Train the four AutoBNN model types used by the toy scoring-rule section of
+# notebooks/AnalyzeBNNMetrics.ipynb, with d3 lambda=1e1.
 # Each model/dataset pair is repeated 10 times, for 160 array tasks total.
 #
 # Array mapping:
@@ -19,7 +19,7 @@
 #   rep_id     = task_id % num_repeats             in [0..9]  (passed as --sub_index)
 #
 # Submit:
-#   sbatch slurm/thesis-scripts/train_all_model_kernels_to_16wong_d31e1.slurm
+#   sbatch slurm/thesis-scripts/ch4-1-train_all_model_kernels_to_16wong_d31e1.slurm
 #
 # Merge after the array finishes:
 #   for parts in "$RESULT_DIR"/*.h5.parts; do
@@ -28,7 +28,7 @@
 #
 # Useful overrides:
 #   sbatch --export=ALL,NUM_DRAWS=100,NUM_REPEATS=10,RESULT_DIR=/path/to/results \
-#     slurm/thesis-scripts/train_all_model_kernels_to_16wong_d31e1.slurm
+#     slurm/thesis-scripts/ch4-1-train_all_model_kernels_to_16wong_d31e1.slurm
 
 set -euo pipefail
 
@@ -72,7 +72,7 @@ if [ ! -f "$DATA_PATH" ]; then
   trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
 
   if [ ! -f "$DATA_PATH" ]; then
-    echo "Creating BNNDataAnalysis four-curve H5: $DATA_PATH"
+    echo "Creating AnalyzeBNNMetrics four-curve H5: $DATA_PATH"
     PYTHONPATH="$REPO_DIR:${PYTHONPATH:-}" python - "$DATA_PATH" "$REPO_DIR/data" <<'PY'
 import sys
 from pathlib import Path
@@ -162,7 +162,7 @@ with h5py.File(out_file, "w") as f:
         mean_spacing=-1.0,
         n_curves=len(names),
         n_noise=1,
-        source="notebooks/BNNDataAnalysis.ipynb",
+        source="notebooks/AnalyzeBNNMetrics.ipynb",
     )
 
 print(f"Wrote {len(names)} curves to {out_file}")

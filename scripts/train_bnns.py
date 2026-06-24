@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Core script used to train AutoBNN models to data that interfaces with given slurm scripts. 
+If you don't need to use SLURM, and can run on a single machine, you can use the sample_run/train_all.py script instead."""
 import os, sys, time
 import argparse
 from pathlib import Path

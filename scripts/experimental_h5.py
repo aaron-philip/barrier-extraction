@@ -1,3 +1,5 @@
+"""This script demonstrates how to write the 4 experimental datasets (each with 1 curve) to a single HDF5 file,
+ compatible with the BNN training scripts in the slurm folder"""
 import numpy as np
 import os
 import argparse

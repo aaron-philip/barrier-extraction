@@ -17,11 +17,11 @@
 #   curve_id = task_id % 7   in [0..6]
 #
 # Submit:
-#   sbatch slurm/thesis-scripts/train_all_model_kernels_to_experiments_d31e1.slurm
+#   sbatch slurm/thesis-scripts/ch4-0-train_all_model_kernels_to_experiments_d31e1.slurm
 #
 # Optional overrides:
 #   sbatch --export=ALL,DATAFILE=/path/to/experiments7.h5,ENV_PATH=~/envs/autobnn-test-fork \
-#     slurm/thesis-scripts/train_all_model_kernels_to_experiments_d31e1.slurm
+#     slurm/thesis-scripts/ch4-0-train_all_model_kernels_to_experiments_d31e1.slurm
 
 set -euo pipefail
 

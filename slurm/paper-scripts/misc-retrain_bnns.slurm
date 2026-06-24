@@ -11,10 +11,12 @@
 
 # Repeated fits to the SAME curve (same param index), varying sub_index.
 # Submit like:
-#   sbatch --export=ALL,DATAFILE=res_2.00MeV_noise0.01.h5,PARAM_INDEX=72 retrain_bnns.slurm
+#   sbatch --export=ALL,DATAFILE=res_2.00MeV_noise0.01.h5,PARAM_INDEX=72 \
+#     slurm/paper-scripts/misc-retrain_bnns.slurm
 #
 # Or with full path:
-#   sbatch --export=ALL,DATAFILE=/mnt/home/philipaa/scratch/barrier-paper-datasets/res_2.00MeV_noise0.01.h5,PARAM_INDEX=72 retrain_bnns.slurm
+#   sbatch --export=ALL,DATAFILE=/mnt/home/philipaa/scratch/barrier-paper-datasets/res_2.00MeV_noise0.01.h5,PARAM_INDEX=72 \
+#     slurm/paper-scripts/misc-retrain_bnns.slurm
 
 set -euo pipefail
 

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""This script generated all 16 Wong datasets each with 1000 parameter samples x 10 noise samples. 
+The datasets are saved in the OUTDIR directory as .npz files."""
 import os
 import sys
 from pathlib import Path

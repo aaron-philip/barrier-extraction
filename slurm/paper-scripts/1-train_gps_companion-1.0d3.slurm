@@ -8,8 +8,15 @@
 #SBATCH --mem=16G
 #SBATCH --partition=standard
 
-# Companion GP rerun into the same results root as the d3-lambda-1 BNN rerun.
-# No derivative penalty is applied to GP training; this copy only redirects paths.
+# Companion GP baseline for the same Wong toy datasets used by the 1.0d3 BNN
+# paper pipeline. No derivative penalty is applied to GP training; the 1.0d3
+# tag means these GP outputs live beside the lambda = 1.0 BNN result family.
+#
+# Run after, before, or alongside the BNN pipeline with:
+#   sbatch slurm/paper-scripts/1-train_gps_companion-1.0d3.slurm
+#
+# This auto-submits an array over all H5 files in DATA_DIR and writes:
+#   /mnt/home/philipaa/scratch/barrier-paper-results/d3lambda1_rerun/gps
 
 REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
 export REPO_DIR
