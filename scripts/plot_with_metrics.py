@@ -5,9 +5,12 @@ import numpy as np
 import h5py
 import matplotlib.pyplot as plt
 import sys
+from pathlib import Path
 
-if "/mnt/home/philipaa/research/barrier-extraction/src" not in sys.path:
-    sys.path.append("/mnt/home/philipaa/research/barrier-extraction/src")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC = PROJECT_ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.append(str(SRC))
 
 from train import percentile_bands, barrier_from_sigma_samples
 from wong import sigma
@@ -189,7 +192,7 @@ def plot_random_5_from_csv(h5_path, n_samples=5, seed=None):
             )
 
     plt.tight_layout()
-    out_png = f"/mnt/home/philipaa/research/barrier-extraction/plots/{os.path.basename(h5_path)}_csv_cross.png"
+    out_png = PROJECT_ROOT / "plots" / f"{os.path.basename(h5_path)}_csv_cross.png"
     plt.savefig(out_png, dpi=300)
     print(f"\nSaved → {out_png}")
     plt.show()
@@ -207,4 +210,3 @@ if __name__ == "__main__":
     args = ap.parse_args()
 
     plot_random_5_from_csv(args.h5, n_samples=args.n_samples, seed=args.seed)
-

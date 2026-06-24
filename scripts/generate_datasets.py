@@ -11,7 +11,7 @@ if str(SRC) not in sys.path:
 from generator import generate_datasets
 
 # Base output directory
-OUTDIR = "/mnt/home/philipaa/scratch/barrier-paper-datasets"
+OUTDIR = Path(__file__).resolve().parents[1] / "data" / "packed"
 os.makedirs(OUTDIR, exist_ok=True)
 
 # ============================================================

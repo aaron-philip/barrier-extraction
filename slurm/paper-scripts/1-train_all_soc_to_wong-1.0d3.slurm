@@ -1,7 +1,7 @@
 #!/bin/bash --login
 #SBATCH --job-name=bnn_train_d3lam1
-#SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_d3lam1_%A_%a.out
-#SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_d3lam1_%A_%a.err
+#SBATCH --output=logs/bnn_d3lam1_%A_%a.out
+#SBATCH --error=logs/bnn_d3lam1_%A_%a.err
 #SBATCH --time=06:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -25,14 +25,14 @@
 #     slurm/paper-scripts/1-train_all_soc_to_wong-1.0d3.slurm
 set -euo pipefail
 
-REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 export REPO_DIR
 
 # === Directories ===
-DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
-RESULT_ROOT=/mnt/home/philipaa/scratch/barrier-paper-results/d3lambda1_rerun
+DATA_DIR="$REPO_DIR/data/packed"
+RESULT_ROOT=$REPO_DIR/data/results/d3lambda1_rerun
 RESULT_DIR="$RESULT_ROOT/bnns_with_df"
-LOG_DIR=/mnt/home/philipaa/scratch/barrier-paper-logs
+LOG_DIR=$REPO_DIR/logs
 mkdir -p "$RESULT_DIR" "$LOG_DIR"
 
 # --- dataset argument ---

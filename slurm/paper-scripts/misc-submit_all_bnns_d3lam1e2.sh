@@ -1,13 +1,13 @@
 #!/bin/bash --login
 set -euo pipefail
-
-DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
-RESULT_ROOT=/mnt/home/philipaa/scratch/barrier-paper-results/d3lambda1e2_rerun
-RESULT_DIR="$RESULT_ROOT/bnns_with_df"
-LOG_DIR=/mnt/home/philipaa/scratch/barrier-paper-logs
-
-REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 export REPO_DIR
+
+DATA_DIR="$REPO_DIR/data/packed"
+RESULT_ROOT=$REPO_DIR/data/results/d3lambda1e2_rerun
+RESULT_DIR="$RESULT_ROOT/bnns_with_df"
+LOG_DIR=$REPO_DIR/logs
+
 TRAIN_SLURM="$REPO_DIR/slurm/paper-scripts/misc-train_bnns_d3lam1e2.slurm"
 MERGE_PY="$REPO_DIR/scripts/merge_bnn_parts.py"
 PLOT_EC="$REPO_DIR/scripts/plot_empirical_coverage.py"

@@ -25,7 +25,8 @@ from autobnn import estimators
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data",  default="/mnt/scratch/philipaa/barrier-paper-datasets/experiments.h5")
+    default_data = Path(__file__).resolve().parents[1] / "data" / "packed" / "experiments.h5"
+    ap.add_argument("--data", default=str(default_data))
     ap.add_argument("--index", type=int, default=0,
                     help="Parameter-sample id (NOT raw dataset row). Actual row = index * stride.")
     ap.add_argument("--sub_index", type=int, default=0,

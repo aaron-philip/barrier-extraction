@@ -1,7 +1,7 @@
 #!/bin/bash --login
 #SBATCH --job-name=d3lam1_submitter
-#SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/d3lam1_submitter_%j.out
-#SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/d3lam1_submitter_%j.err
+#SBATCH --output=logs/d3lam1_submitter_%j.out
+#SBATCH --error=logs/d3lam1_submitter_%j.err
 #SBATCH --time=72:00:00
 #SBATCH --partition=frib-nodes
 #SBATCH --nodes=1
@@ -18,8 +18,8 @@ set -euo pipefail
 # 1-submit_all_soc_trains_to_wong-1.0d3.sh, which submits each BNN array and
 # its merge/coverage/metric follow-up jobs in sequence.
 
-mkdir -p /mnt/home/philipaa/scratch/barrier-paper-logs
-REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+mkdir -p "$REPO_DIR/logs"
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 export REPO_DIR
 
 echo "Submitter job: ${SLURM_JOB_ID:-unknown}"

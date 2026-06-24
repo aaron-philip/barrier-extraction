@@ -4,6 +4,7 @@ import os
 import sys
 import logging
 import h5py
+from pathlib import Path
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -336,7 +337,7 @@ def compute_all_metrics(E, y_true, y_mean, y_samples, levels=(0.5, 0.68, 0.9, 0.
 def setup_logger(
     name=None,
     dataset_path=None,
-    log_dir="/mnt/home/philipaa/scratch/barrier-paper-logs",
+    log_dir=None,
     tag=None,
     level=logging.INFO,
 ):
@@ -362,6 +363,8 @@ def setup_logger(
     logger : logging.Logger
         Configured logger that writes to both file and stdout.
     """
+    if log_dir is None:
+        log_dir = Path(__file__).resolve().parents[1] / "logs"
 
     os.makedirs(log_dir, exist_ok=True)
 

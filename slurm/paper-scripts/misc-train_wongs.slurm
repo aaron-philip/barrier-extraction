@@ -1,7 +1,7 @@
 #!/bin/bash --login
 #SBATCH --job-name=wong_train
-#SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/wong_%A_%a.out
-#SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/wong_%A_%a.err
+#SBATCH --output=logs/wong_%A_%a.out
+#SBATCH --error=logs/wong_%A_%a.err
 #SBATCH --time=02:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
@@ -9,11 +9,11 @@
 #SBATCH --partition=standard
 
 # === Directories ===
-REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 export REPO_DIR
-DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
-RESULT_DIR=/mnt/home/philipaa/scratch/barrier-paper-results
-LOG_DIR=/mnt/home/philipaa/scratch/barrier-paper-logs
+DATA_DIR="$REPO_DIR/data/packed"
+RESULT_DIR=$REPO_DIR/data/results
+LOG_DIR=$REPO_DIR/logs
 mkdir -p $RESULT_DIR $LOG_DIR
 
 # === Compute array length dynamically ===

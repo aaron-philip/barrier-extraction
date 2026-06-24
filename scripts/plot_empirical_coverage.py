@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+from pathlib import Path
 
 
 def _finite(x):
@@ -186,7 +187,8 @@ def main():
     plt.tight_layout()
 
     prefix = "norm_" if args.normalize else ""
-    out_pdf = f"/mnt/home/philipaa/research/barrier-extraction/plots/{prefix}EC_1.0_20_{os.path.basename(args.csv)}.pdf"
+    project_root = Path(__file__).resolve().parents[1]
+    out_pdf = project_root / "plots" / f"{prefix}EC_1.0_20_{os.path.basename(args.csv)}.pdf"
     plt.savefig(out_pdf, dpi=300)
     print(f"Saved -> {out_pdf}")
     

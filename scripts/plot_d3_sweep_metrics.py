@@ -18,9 +18,8 @@ from matplotlib.colors import to_rgb
 from matplotlib.lines import Line2D
 
 
-DEFAULT_RESULTS_DIR = Path(
-    "/mnt/home/philipaa/scratch/barrier-paper-results/d3_sweep_single_curve"
-)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_RESULTS_DIR = PROJECT_ROOT / "data" / "results" / "d3_sweep_single_curve"
 PENALTY_ORDER = ("1", "1e1", "1e2")
 PENALTY_LABELS = {
     "1": r"$\lambda_{D3}=1$",

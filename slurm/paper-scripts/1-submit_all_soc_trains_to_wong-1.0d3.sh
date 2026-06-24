@@ -1,13 +1,13 @@
 #!/bin/bash --login
 set -euo pipefail
-
-DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
-RESULT_ROOT=/mnt/home/philipaa/scratch/barrier-paper-results/d3lambda1_rerun
-RESULT_DIR="$RESULT_ROOT/bnns_with_df"
-LOG_DIR=/mnt/home/philipaa/scratch/barrier-paper-logs
-
-REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 export REPO_DIR
+
+DATA_DIR="$REPO_DIR/data/packed"
+RESULT_ROOT=$REPO_DIR/data/results/d3lambda1_rerun
+RESULT_DIR="$RESULT_ROOT/bnns_with_df"
+LOG_DIR=$REPO_DIR/logs
+
 TRAIN_SLURM="$REPO_DIR/slurm/paper-scripts/1-train_all_soc_to_wong-1.0d3.slurm"
 MERGE_PY="$REPO_DIR/scripts/merge_bnn_parts.py"
 PLOT_EC="$REPO_DIR/scripts/plot_empirical_coverage.py"
@@ -28,7 +28,7 @@ mkdir -p "$RESULT_DIR" "$LOG_DIR"
 # 1-train_all_soc_to_wong-1.0d3.slurm, then submits merge, empirical-coverage,
 # normalized empirical-coverage, and metric plotting jobs after the array
 # succeeds. Outputs land in:
-#   /mnt/home/philipaa/scratch/barrier-paper-results/d3lambda1_rerun/bnns_with_df
+#   $REPO_DIR/data/results/d3lambda1_rerun/bnns_with_df
 
 DATASETS=(
   cv0.00_spacing0.5.h5

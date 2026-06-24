@@ -1,7 +1,7 @@
 #!/bin/bash --login
 #SBATCH --job-name=bnn_train_reps
-#SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_rep_%A_%a.out
-#SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_rep_%A_%a.err
+#SBATCH --output=logs/bnn_rep_%A_%a.out
+#SBATCH --error=logs/bnn_rep_%A_%a.err
 #SBATCH --time=02:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -15,18 +15,18 @@
 #     slurm/paper-scripts/misc-retrain_bnns.slurm
 #
 # Or with full path:
-#   sbatch --export=ALL,DATAFILE=/mnt/home/philipaa/scratch/barrier-paper-datasets/res_2.00MeV_noise0.01.h5,PARAM_INDEX=72 \
+#   sbatch --export=ALL,DATAFILE=$REPO_DIR/data/packed/res_2.00MeV_noise0.01.h5,PARAM_INDEX=72 \
 #     slurm/paper-scripts/misc-retrain_bnns.slurm
 
 set -euo pipefail
 
-REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 export REPO_DIR
 
 # === Directories ===
-DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
-RESULT_DIR=/mnt/home/philipaa/scratch/barrier-paper-results
-LOG_DIR=/mnt/home/philipaa/scratch/barrier-paper-logs
+DATA_DIR="$REPO_DIR/data/packed"
+RESULT_DIR=$REPO_DIR/data/results
+LOG_DIR=$REPO_DIR/logs
 mkdir -p "$RESULT_DIR" "$LOG_DIR"
 
 # --- Required inputs via --export ---

@@ -1,7 +1,7 @@
 #!/bin/bash --login
 #SBATCH --job-name=bnn_nb_models_d3lam1e1
-#SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_nb_models_d3lam1e1_%A_%a.out
-#SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_nb_models_d3lam1e1_%A_%a.err
+#SBATCH --output=logs/bnn_nb_models_d3lam1e1_%A_%a.out
+#SBATCH --error=logs/bnn_nb_models_d3lam1e1_%A_%a.err
 #SBATCH --time=08:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -32,12 +32,12 @@
 
 set -euo pipefail
 
-REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 export REPO_DIR
 
-DATA_DIR="${DATA_DIR:-/mnt/home/philipaa/scratch/barrier-paper-datasets}"
-RESULT_DIR="${RESULT_DIR:-/mnt/home/philipaa/scratch/barrier-paper-results/bnn_data_analysis_models_d3lam1e1_10reps}"
-LOG_DIR="${LOG_DIR:-/mnt/home/philipaa/scratch/barrier-paper-logs}"
+DATA_DIR="${DATA_DIR:-$REPO_DIR/data/packed}"
+RESULT_DIR="${RESULT_DIR:-$REPO_DIR/data/results/bnn_data_analysis_models_d3lam1e1_10reps}"
+LOG_DIR="${LOG_DIR:-$REPO_DIR/logs}"
 ENV_PATH="${ENV_PATH:-$HOME/envs/autobnn-test-fork}"
 DATAFILE="${DATAFILE:-bnn_data_analysis_4curves.h5}"
 STRIDE="${STRIDE:-1}"
