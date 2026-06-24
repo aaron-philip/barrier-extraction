@@ -108,15 +108,67 @@ def barrier_dist_discrete(e,sigma, acc=4):
     barrier_dist = d(sigma*e)
     return (barrier_dist)
 
-def point_diff(x,y,std,dE=1):
-    der = np.zeros(x.shape)
-    der_err = np.zeros(x.shape)
-    for i in range(dE,x.shape[0]-dE):
-        der[i] = (2*y[i] - y[i-dE] - y[i+dE]) / (abs(x[i] - x[i-dE]) * abs(x[i]-x[i+dE]))
-        der_err[i] = std[i] * np.sqrt(6) * y[i] / (abs(x[i] - x[i-dE]) * abs(x[i]-x[i+dE]))
-        # print(i,std[i],y[i],der_err[i])
-    
-    return der, der_err
+def paper_three_point_barrier(energy, sigma, sigma_err, dE=1):
+    """Estimate a fusion-barrier distribution with a three-point stencil.
+
+    This implements Eqs. (39) and (41) of Dasgupta et al.,
+    *Measuring Barriers to Fusion*.  Equation (39) retains unequal left and
+    right energy intervals.  Equation (41) is the paper's equal-step
+    uncertainty approximation, with the local step represented by
+    ``(E3 - E1) / 2``.
+
+    Parameters
+    ----------
+    energy, sigma, sigma_err : array_like
+        Strictly increasing center-of-mass energies, measured cross sections,
+        and their absolute one-standard-deviation uncertainties.
+    dE : int, optional
+        Index offset from the middle point to each outer stencil point.
+
+    Returns
+    -------
+    energy_barrier, barrier, barrier_err : ndarray
+        Evaluation energies, estimates of ``d²(E sigma)/dE²``, and propagated
+        one-standard-deviation uncertainties.
+    """
+    energy = np.asarray(energy, dtype=float)
+    sigma = np.asarray(sigma, dtype=float)
+    sigma_err = np.asarray(sigma_err, dtype=float)
+
+    if energy.ndim != 1:
+        raise ValueError("energy, sigma, and sigma_err must be one-dimensional")
+    if not (energy.shape == sigma.shape == sigma_err.shape):
+        raise ValueError("energy, sigma, and sigma_err must have matching shapes")
+    if not isinstance(dE, (int, np.integer)) or isinstance(dE, (bool, np.bool_)):
+        raise TypeError("dE must be an integer")
+    if dE < 1 or 2 * dE >= energy.size:
+        raise ValueError("dE must leave at least one complete three-point stencil")
+
+    i2 = np.arange(dE, energy.size - dE)
+    i1 = i2 - dE
+    i3 = i2 + dE
+
+    E1, E2, E3 = energy[i1], energy[i2], energy[i3]
+    h_left = E2 - E1
+    h_right = E3 - E2
+    if np.any(h_left <= 0) or np.any(h_right <= 0):
+        raise ValueError("energy must be strictly increasing")
+
+    energy_sigma = energy * sigma
+    barrier = 2.0 / (E3 - E1) * (
+        (energy_sigma[i3] - energy_sigma[i2]) / h_right
+        - (energy_sigma[i2] - energy_sigma[i1]) / h_left
+    )
+
+    energy_barrier = (E1 + 2.0 * E2 + E3) / 4.0
+    delta_energy = (E3 - E1) / 2.0
+    barrier_err = energy_barrier / delta_energy**2 * np.sqrt(
+        sigma_err[i1] ** 2
+        + 4.0 * sigma_err[i2] ** 2
+        + sigma_err[i3] ** 2
+    )
+
+    return energy_barrier, barrier, barrier_err
 
 
 
