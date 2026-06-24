@@ -12,7 +12,8 @@
 set -euo pipefail
 
 mkdir -p /mnt/home/philipaa/scratch/barrier-paper-logs
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+export REPO_DIR
 
 echo "Submitter job: ${SLURM_JOB_ID:-unknown}"
 echo "Running on: $(hostname)"

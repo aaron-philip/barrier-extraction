@@ -5,7 +5,8 @@ DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
 RESULT_DIR=/mnt/home/philipaa/scratch/barrier-paper-results/bnns_with_df
 LOG_DIR=/mnt/home/philipaa/scratch/barrier-paper-logs
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+export REPO_DIR
 TRAIN_SLURM="$REPO_DIR/slurm/paper-scripts/train_bnns.slurm"
 MERGE_PY="$REPO_DIR/scripts/merge_bnn_parts.py"
 PLOT_EC="$REPO_DIR/scripts/plot_empirical_coverage.py"

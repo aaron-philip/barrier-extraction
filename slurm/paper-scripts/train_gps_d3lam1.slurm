@@ -11,7 +11,8 @@
 # Companion GP rerun into the same results root as the d3-lambda-1 BNN rerun.
 # No derivative penalty is applied to GP training; this copy only redirects paths.
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+export REPO_DIR
 DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
 RESULT_DIR=/mnt/home/philipaa/scratch/barrier-paper-results/d3lambda1_rerun/gps
 LOG_DIR=/mnt/home/philipaa/scratch/barrier-paper-logs

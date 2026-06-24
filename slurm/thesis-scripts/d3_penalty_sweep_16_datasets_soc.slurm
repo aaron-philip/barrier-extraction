@@ -19,7 +19,8 @@
 # This script intentionally has no repeat/sub_index dimension.
 set -euo pipefail
 
-REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+export REPO_DIR
 
 DATA_DIR="${DATA_DIR:-/mnt/home/philipaa/scratch/barrier-paper-datasets}"
 RESULT_DIR="${RESULT_DIR:-/mnt/home/philipaa/scratch/barrier-paper-results/d3_sweep_single_curve}"

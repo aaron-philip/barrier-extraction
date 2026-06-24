@@ -18,7 +18,8 @@
 
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+export REPO_DIR
 
 # === Directories ===
 DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
@@ -61,7 +62,7 @@ OUTFILE="$RESULT_DIR/${BASENAME}_bnn_soc_idx${PARAM_INDEX}.h5"
 # --- Environment ---
 source ~/.bashrc
 conda deactivate
-conda activate ~/envs/autobnn-reproduce2
+conda activate ~/envs/autobnn-test-fork
 
 # Force JAX to CPU and prevent any CUDA init attempt
 export JAX_PLATFORMS=cpu

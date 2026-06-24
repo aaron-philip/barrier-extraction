@@ -2,11 +2,12 @@
 set -euo pipefail
 
 DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
-RESULT_ROOT=/mnt/home/philipaa/scratch/barrier-paper-results/d3lambda1_rerun
+RESULT_ROOT=/mnt/home/philipaa/scratch/barrier-paper-results/d3lambda1e1_rerun
 RESULT_DIR="$RESULT_ROOT/bnns_with_df"
 LOG_DIR=/mnt/home/philipaa/scratch/barrier-paper-logs
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+export REPO_DIR
 TRAIN_SLURM="$REPO_DIR/slurm/paper-scripts/train_all_soc_to_wong_d31e1.slurm"
 MERGE_PY="$REPO_DIR/scripts/merge_bnn_parts.py"
 PLOT_EC="$REPO_DIR/scripts/plot_empirical_coverage.py"
@@ -80,11 +81,11 @@ dataset_has_active_pipeline () {
   local basename="$1"
   local queue
   queue="$(squeue -u "$USER" -h -o '%j' 2>/dev/null || true)"
-  [[ "$queue" == *"bnn_d3lam1_${basename}"* ]] && return 0
-  [[ "$queue" == *"merge_d3lam1_${basename}"* ]] && return 0
-  [[ "$queue" == *"ec_d3lam1_${basename}"* ]] && return 0
-  [[ "$queue" == *"ecn_d3lam1_${basename}"* ]] && return 0
-  [[ "$queue" == *"met_d3lam1_${basename}"* ]] && return 0
+  [[ "$queue" == *"bnn_d3lam1e1_${basename}"* ]] && return 0
+  [[ "$queue" == *"merge_d3lam1e1_${basename}"* ]] && return 0
+  [[ "$queue" == *"ec_d3lam1e1_${basename}"* ]] && return 0
+  [[ "$queue" == *"ecn_d3lam1e1_${basename}"* ]] && return 0
+  [[ "$queue" == *"met_d3lam1e1_${basename}"* ]] && return 0
   return 1
 }
 
@@ -128,7 +129,7 @@ for FILE in "${DATASETS[@]}"; do
   fi
 
   BASENAME="${FILE%.h5}"
-  OUTH5="$RESULT_DIR/${BASENAME}_bnn_soc_d3lam1.h5"
+  OUTH5="$RESULT_DIR/${BASENAME}_bnn_soc_d3lam1e1.h5"
   OUTCSV="${OUTH5}.csv"
 
   # Skip datasets that already made it all the way through merge.
@@ -142,11 +143,11 @@ for FILE in "${DATASETS[@]}"; do
     continue
   fi
   echo "=============================="
-  echo "Submitting d3lam1 pipeline for: $BASENAME"
+  echo "Submitting d3lam1e1 pipeline for: $BASENAME"
   echo "=============================="
 
   TRAIN_JOB_ID=$(submit_with_retry "train $BASENAME" sbatch --parsable \
-    --job-name="bnn_d3lam1_${BASENAME}" \
+    --job-name="bnn_d3lam1e1_${BASENAME}" \
     --array="$ARRAY_SPEC" \
     --export=ALL,DATAFILE="$DATA_PATH" \
     "$TRAIN_SLURM")
@@ -154,9 +155,9 @@ for FILE in "${DATASETS[@]}"; do
 
   MERGE_JOB_ID=$(submit_with_retry "merge $BASENAME" sbatch --parsable \
     --dependency=afterok:$TRAIN_JOB_ID \
-    --job-name="merge_d3lam1_${BASENAME}" \
-    --output="$LOG_DIR/merge_d3lam1_${BASENAME}_%j.out" \
-    --error="$LOG_DIR/merge_d3lam1_${BASENAME}_%j.err" \
+    --job-name="merge_d3lam1e1_${BASENAME}" \
+    --output="$LOG_DIR/merge_d3lam1e1_${BASENAME}_%j.out" \
+    --error="$LOG_DIR/merge_d3lam1e1_${BASENAME}_%j.err" \
     --time=00:20:00 --ntasks=1 --cpus-per-task=1 --mem=4G \
     --partition=frib-nodes \
     --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$MERGE_PY\" --out_h5 \"$OUTH5\"")
@@ -164,9 +165,9 @@ for FILE in "${DATASETS[@]}"; do
 
   EC_JOB_ID=$(submit_with_retry "ec $BASENAME" sbatch --parsable \
     --dependency=afterok:$MERGE_JOB_ID \
-    --job-name="ec_d3lam1_${BASENAME}" \
-    --output="$LOG_DIR/ec_d3lam1_${BASENAME}_%j.out" \
-    --error="$LOG_DIR/ec_d3lam1_${BASENAME}_%j.err" \
+    --job-name="ec_d3lam1e1_${BASENAME}" \
+    --output="$LOG_DIR/ec_d3lam1e1_${BASENAME}_%j.out" \
+    --error="$LOG_DIR/ec_d3lam1e1_${BASENAME}_%j.err" \
     --time=00:10:00 --ntasks=1 --cpus-per-task=1 --mem=2G \
     --partition=frib-nodes \
     --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier")
@@ -174,9 +175,9 @@ for FILE in "${DATASETS[@]}"; do
 
   ECN_JOB_ID=$(submit_with_retry "ecn $BASENAME" sbatch --parsable \
     --dependency=afterok:$MERGE_JOB_ID \
-    --job-name="ecn_d3lam1_${BASENAME}" \
-    --output="$LOG_DIR/ecn_d3lam1_${BASENAME}_%j.out" \
-    --error="$LOG_DIR/ecn_d3lam1_${BASENAME}_%j.err" \
+    --job-name="ecn_d3lam1e1_${BASENAME}" \
+    --output="$LOG_DIR/ecn_d3lam1e1_${BASENAME}_%j.out" \
+    --error="$LOG_DIR/ecn_d3lam1e1_${BASENAME}_%j.err" \
     --time=00:10:00 --ntasks=1 --cpus-per-task=1 --mem=2G \
     --partition=frib-nodes \
     --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier --normalize")
@@ -184,9 +185,9 @@ for FILE in "${DATASETS[@]}"; do
 
   MET_JOB_ID=$(submit_with_retry "met $BASENAME" sbatch --parsable \
     --dependency=afterok:$MERGE_JOB_ID \
-    --job-name="met_d3lam1_${BASENAME}" \
-    --output="$LOG_DIR/met_d3lam1_${BASENAME}_%j.out" \
-    --error="$LOG_DIR/met_d3lam1_${BASENAME}_%j.err" \
+    --job-name="met_d3lam1e1_${BASENAME}" \
+    --output="$LOG_DIR/met_d3lam1e1_${BASENAME}_%j.out" \
+    --error="$LOG_DIR/met_d3lam1e1_${BASENAME}_%j.err" \
     --time=00:10:00 --ntasks=1 --cpus-per-task=1 --mem=2G \
     --partition=frib-nodes \
     --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$PLOT_MET\" --h5 \"$OUTH5\"")
@@ -199,4 +200,4 @@ for FILE in "${DATASETS[@]}"; do
   echo "Pipeline finished for: $BASENAME"
 done
 
-echo "Done (sequential): all d3lam1 dataset pipelines completed."
+echo "Done (sequential): all d3lam1e1 dataset pipelines completed."

@@ -1,0 +1,7 @@
+# Optional CUDA 12 extras for JAX. Install this after the CPU baseline:
+#
+#   python -m pip install -r requirements.txt
+#   python -m pip install -r requirements-cuda12.txt
+#
+# Keep the JAX version aligned with requirements.txt.
+jax[cuda12]==0.5.3

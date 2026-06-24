@@ -10,9 +10,15 @@ scipy==1.14.1
 pandas==2.2.3
 matplotlib==3.9.2
 h5py==3.12.1
-jax[cuda12]==0.5.3
+jax==0.5.3
+jaxlib==0.5.3
 bayeux-ml==0.1.15
+# The PyPI oryx 0.2.9 wheel is not compatible with jax 0.5.3 because it
+# misses the required debug_info argument in abstract_eval_fun calls. Pin the
+# working upstream commit used by the reproducible environment.
+oryx @ git+https://github.com/jax-ml/oryx.git@2619298bbda423ffb0923d69acaeb1cccd7d7e44
 protobuf==4.25.3
 findiff==0.12.1
 SciencePlots==2.1.1
 pyyaml==6.0.2
+scikit-learn==1.7.0

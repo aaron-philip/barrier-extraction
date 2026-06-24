@@ -12,7 +12,8 @@
 # Do not sbatch this directly; use slurm/paper-scripts/submit_all_bnns_d3lam1e2.sh.
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+export REPO_DIR
 
 DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets
 RESULT_ROOT=/mnt/home/philipaa/scratch/barrier-paper-results/d3lambda1e2_rerun
@@ -110,7 +111,7 @@ python "$REPO_DIR/scripts/train_bnns.py" \
   --stride 10 \
   --out_h5 "$OUTFILE" \
   --num_draws 50 \
-  --d3_lambda 1e2 \
+  --d3_lambda 100 \
   --d3_lambda_space physical
 
 echo "Done param index $SLURM_ARRAY_TASK_ID"

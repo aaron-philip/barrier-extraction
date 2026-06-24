@@ -1,7 +1,7 @@
 #!/bin/bash --login
-#SBATCH --job-name=bnn_exp7_models_d3lam1
-#SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_exp7_models_d3lam1_%A_%a.out
-#SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_exp7_models_d3lam1_%A_%a.err
+#SBATCH --job-name=bnn_exp7_models_d3lam1e1
+#SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_exp7_models_d3lam1e1_%A_%a.out
+#SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_exp7_models_d3lam1e1_%A_%a.err
 #SBATCH --time=08:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -10,7 +10,7 @@
 #SBATCH --array=0-34
 
 # Train one BNN for every notebook experimental curve and model type with
-# third-derivative penalty lambda = 1.0.
+# third-derivative penalty lambda = 1e1.
 #
 # Array mapping:
 #   model_id = task_id / 7   in [0..4]
@@ -20,17 +20,18 @@
 #   sbatch slurm/thesis-scripts/train_all_model_kernels_to_experiments_d31e1.slurm
 #
 # Optional overrides:
-#   sbatch --export=ALL,DATAFILE=/path/to/experiments7.h5,ENV_PATH=~/envs/autobnn-reproduce2 \
+#   sbatch --export=ALL,DATAFILE=/path/to/experiments7.h5,ENV_PATH=~/envs/autobnn-test-fork \
 #     slurm/thesis-scripts/train_all_model_kernels_to_experiments_d31e1.slurm
 
 set -euo pipefail
 
-REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+export REPO_DIR
 
 DATA_DIR="${DATA_DIR:-/mnt/home/philipaa/scratch/barrier-paper-datasets}"
-RESULT_DIR="${RESULT_DIR:-/mnt/home/philipaa/scratch/barrier-paper-results/experiments7_models_d3lam1}"
+RESULT_DIR="${RESULT_DIR:-/mnt/home/philipaa/scratch/barrier-paper-results/experiments7_models_d3lam1e1}"
 LOG_DIR="${LOG_DIR:-/mnt/home/philipaa/scratch/barrier-paper-logs}"
-ENV_PATH="${ENV_PATH:-$HOME/envs/autobnn-reproduce2}"
+ENV_PATH="${ENV_PATH:-$HOME/envs/autobnn-test-fork}"
 
 DATAFILE="${DATAFILE:-experiments7.h5}"
 STRIDE="${STRIDE:-1}"
@@ -168,7 +169,7 @@ fi
 MODEL="${MODELS[$MODEL_ID]}"
 CURVE_NAME="${DATASET_NAMES[$CURVE_ID]}"
 H5_BASENAME="$(basename "$DATA_PATH" .h5)"
-OUTFILE="$RESULT_DIR/${H5_BASENAME}_${CURVE_NAME}_${MODEL}_bnn_d3lam1.h5"
+OUTFILE="$RESULT_DIR/${H5_BASENAME}_${CURVE_NAME}_${MODEL}_bnn_d3lam1e1.h5"
 
 echo "Node:            $(hostname)"
 echo "Repo:            $REPO_DIR"

@@ -13,7 +13,8 @@
 # Do not sbatch this directly; use slurm/paper-scripts/submit_all_bnns.sh.
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+export REPO_DIR
 
 # === Directories ===
 DATA_DIR=/mnt/home/philipaa/scratch/barrier-paper-datasets

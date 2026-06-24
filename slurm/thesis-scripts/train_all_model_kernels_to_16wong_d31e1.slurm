@@ -2,38 +2,47 @@
 #SBATCH --job-name=bnn_nb_models_d3lam1e1
 #SBATCH --output=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_nb_models_d3lam1e1_%A_%a.out
 #SBATCH --error=/mnt/home/philipaa/scratch/barrier-paper-logs/bnn_nb_models_d3lam1e1_%A_%a.err
-#SBATCH --time=06:00:00
+#SBATCH --time=08:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=128G
 #SBATCH --partition=frib-nodes
-#SBATCH --array=0-15
+#SBATCH --array=0-159
 
 # Train the four AutoBNN model types used by notebooks/BNNDataAnalysis.ipynb
 # on the four datasets in its final two comparison figures, with d3 lambda=1e1.
+# Each model/dataset pair is repeated 10 times, for 160 array tasks total.
 #
 # Array mapping:
-#   model_id   = task_id / 4   in [0..3]
-#   dataset_id = task_id % 4   in [0..3]
+#   model_id   = task_id / (4 * num_repeats)       in [0..3]
+#   dataset_id = (task_id % (4 * num_repeats)) / num_repeats  in [0..3]
+#   rep_id     = task_id % num_repeats             in [0..9]  (passed as --sub_index)
 #
 # Submit:
 #   sbatch slurm/thesis-scripts/train_all_model_kernels_to_16wong_d31e1.slurm
 #
+# Merge after the array finishes:
+#   for parts in "$RESULT_DIR"/*.h5.parts; do
+#     python "$REPO_DIR/scripts/merge_bnn_parts.py" --out_h5 "${parts%.parts}"
+#   done
+#
 # Useful overrides:
-#   sbatch --export=ALL,NUM_DRAWS=100,RESULT_DIR=/path/to/results \
+#   sbatch --export=ALL,NUM_DRAWS=100,NUM_REPEATS=10,RESULT_DIR=/path/to/results \
 #     slurm/thesis-scripts/train_all_model_kernels_to_16wong_d31e1.slurm
 
 set -euo pipefail
 
-REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+REPO_DIR="${REPO_DIR:-/mnt/home/philipaa/research/barrier-extraction}"
+export REPO_DIR
 
 DATA_DIR="${DATA_DIR:-/mnt/home/philipaa/scratch/barrier-paper-datasets}"
-RESULT_DIR="${RESULT_DIR:-/mnt/home/philipaa/scratch/barrier-paper-results/bnn_data_analysis_models_d3lam1e1}"
+RESULT_DIR="${RESULT_DIR:-/mnt/home/philipaa/scratch/barrier-paper-results/bnn_data_analysis_models_d3lam1e1_10reps}"
 LOG_DIR="${LOG_DIR:-/mnt/home/philipaa/scratch/barrier-paper-logs}"
 ENV_PATH="${ENV_PATH:-$HOME/envs/autobnn-test-fork}"
 DATAFILE="${DATAFILE:-bnn_data_analysis_4curves.h5}"
 STRIDE="${STRIDE:-1}"
 RANDOM_STATE="${RANDOM_STATE:-0}"
+NUM_REPEATS="${NUM_REPEATS:-10}"
 NUM_DRAWS="${NUM_DRAWS:-50}"
 NUM_CHAINS="${NUM_CHAINS:-4}"
 NUM_WARMUP="${NUM_WARMUP:-1000}"
@@ -184,8 +193,10 @@ MODELS=(
 )
 
 TASK_ID="${SLURM_ARRAY_TASK_ID}"
-MODEL_ID=$(( TASK_ID / 4 ))
-DATASET_ID=$(( TASK_ID % 4 ))
+MODEL_ID=$(( TASK_ID / (4 * NUM_REPEATS) ))
+TASK_REMAINDER=$(( TASK_ID % (4 * NUM_REPEATS) ))
+DATASET_ID=$(( TASK_REMAINDER / NUM_REPEATS ))
+REP_ID=$(( TASK_REMAINDER % NUM_REPEATS ))
 
 if [ "$MODEL_ID" -ge "${#MODELS[@]}" ]; then
   echo "ERROR: MODEL_ID=$MODEL_ID out of range for MODELS."
@@ -195,17 +206,22 @@ if [ "$DATASET_ID" -ge "${#DATASET_NAMES[@]}" ]; then
   echo "ERROR: DATASET_ID=$DATASET_ID out of range for DATASET_NAMES."
   exit 1
 fi
+if [ "$REP_ID" -ge "$NUM_REPEATS" ]; then
+  echo "ERROR: REP_ID=$REP_ID out of range for NUM_REPEATS=$NUM_REPEATS."
+  exit 1
+fi
 
 MODEL="${MODELS[$MODEL_ID]}"
 DATASET_NAME="${DATASET_NAMES[$DATASET_ID]}"
 H5_BASENAME="$(basename "$DATA_PATH" .h5)"
-OUTFILE="$RESULT_DIR/${H5_BASENAME}_${DATASET_NAME}_${MODEL}_bnn_d3lam1e1.h5"
+OUTFILE="$RESULT_DIR/${H5_BASENAME}_${DATASET_NAME}_${MODEL}_bnn_d3lam1e1_10reps.h5"
 
 echo "Node:            $(hostname)"
 echo "Repo:            $REPO_DIR"
 echo "Dataset H5:      $DATA_PATH"
 echo "Dataset ID:      $DATASET_ID ($DATASET_NAME)"
 echo "Model ID:        $MODEL_ID ($MODEL)"
+echo "Repeat ID:       $REP_ID / $NUM_REPEATS"
 echo "Stride:          $STRIDE"
 echo "Random state:    $RANDOM_STATE"
 echo "Num chains:      $NUM_CHAINS"
@@ -218,6 +234,7 @@ echo "Output:          $OUTFILE"
 python "$REPO_DIR/scripts/train_bnns.py" \
   --data "$DATA_PATH" \
   --index "$DATASET_ID" \
+  --sub_index "$REP_ID" \
   --stride "$STRIDE" \
   --random_state "$RANDOM_STATE" \
   --out_h5 "$OUTFILE" \
@@ -230,6 +247,6 @@ python "$REPO_DIR/scripts/train_bnns.py" \
   --d3_lambda 10.0 \
   --d3_lambda_space "$D3_LAMBDA_SPACE"
 
-python "$REPO_DIR/scripts/merge_bnn_parts.py" --out_h5 "$OUTFILE"
-
-echo "Done dataset_id=$DATASET_ID model_id=$MODEL_ID -> $OUTFILE"
+echo "Done dataset_id=$DATASET_ID model_id=$MODEL_ID rep_id=$REP_ID -> $OUTFILE.parts/"
+echo "After the array finishes, merge this model/dataset output with:"
+echo "  python \"$REPO_DIR/scripts/merge_bnn_parts.py\" --out_h5 \"$OUTFILE\""
