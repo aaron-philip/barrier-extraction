@@ -28,12 +28,19 @@ def main():
     # --- training inputs/outputs ---
     ap.add_argument("--data", required=True, help="Input packed HDF5 dataset (.h5)")
     ap.add_argument("--out_h5", required=True, help="Output HDF5 file for all GP fit results")
+    ap.add_argument("--log_dir", default=None, help="Directory for train_gps log files")
 
     # --- GP fit controls ---
     ap.add_argument("--log_every", type=int, default=50)
     ap.add_argument("--n_restarts", type=int, default=20)          # GP optimizer restarts
     ap.add_argument("--n_samples", type=int, default=500)         # posterior draws saved to HDF5
     ap.add_argument("--random_state", type=int, default=None)
+    ap.add_argument(
+        "--target_space",
+        choices=("linear", "log"),
+        default="linear",
+        help="Fit the GP to Sigma directly or to log(Sigma), transforming predictions back to Sigma space.",
+    )
 
     # --- metric controls (must match what plotting expects) ---
     ap.add_argument("--pad", type=float, default=2.0,
@@ -47,8 +54,9 @@ def main():
 
     args = ap.parse_args()
 
-    logger = setup_logger(name="train_gp", dataset_path=args.data, tag="gp")
+    logger = setup_logger(name="train_gp", dataset_path=args.data, tag="gp", log_dir=args.log_dir)
     logger.info(f"=== Starting GP training on HDF5 dataset: {args.data} ===")
+    logger.info(f"GP target space: {args.target_space}")
 
     # lazy input
     ds = load_packed_hdf5(args.data)
@@ -85,6 +93,7 @@ def main():
                     E_i, S_i, Se_i,
                     n_restarts=args.n_restarts, n_samples=args.n_samples, random_state=args.random_state,
                     kernel=k_right,
+                    target_space=args.target_space,
                    # kernel=1.0*ChangePointKernel(
                    #     k1=k_right,
                    #     k2=k_left,
@@ -117,6 +126,7 @@ def main():
                     "gp_log_marginal_likelihood": res["gp_log_marginal_likelihood"],
                     "n_restarts": res["n_restarts"],
                     "n_samples": res["n_samples"],
+                    "target_space": res["target_space"],
                     "E0_true": float(p_true[0]),
                     "R0_true": float(p_true[1]),
                     "hw_true": float(p_true[2]),

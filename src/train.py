@@ -148,10 +148,16 @@ def fit_wong(E, Sigma, Sigma_err, n_restarts=5, n_samples=200):
 
 def fit_gp(
     E, Sigma, Sigma_err,
-    n_restarts=10, n_samples=200, random_state=None, kernel=None
+    n_restarts=10, n_samples=200, random_state=None, kernel=None,
+    target_space="linear",
 ):
     """
-    GP regression on (E, Sigma) with simple RBF kernel and heteroscedastic noise via alpha=Sigma_err^2.
+    GP regression on (E, Sigma) with simple RBF kernel and heteroscedastic noise.
+
+    target_space="linear" fits Sigma with alpha=Sigma_err^2.
+    target_space="log" fits log(Sigma) with delta-method alpha=(Sigma_err/Sigma)^2,
+    then transforms predictions back to Sigma space.
+
     Returns arrays for HDF5 writing: x_pred, y_mean, y_samples, and barrier-space summaries.
     """
     # --- defensives & shapes ---
@@ -162,6 +168,10 @@ def fit_gp(
     # ensure sorted by energy (GP prefers monotonic X for some diagnostics)
     order = np.argsort(E)
     E, Sigma, Sigma_err = E[order], Sigma[order], Sigma_err[order]
+
+    target_space = str(target_space).lower()
+    if target_space not in {"linear", "log"}:
+        raise ValueError("target_space must be 'linear' or 'log'")
 
     # --- kernel and GP ---
     # length scale bounds based on grid spacing; robust to irregular grids
@@ -175,16 +185,25 @@ def fit_gp(
         kernel = 1.0*RBF(length_scale=1.0, length_scale_bounds=(ell_min, ell_max))
     
 
+    if target_space == "log":
+        if np.any(Sigma <= 0):
+            raise ValueError("Log-space GP requires strictly positive Sigma values.")
+        y_train = np.log(Sigma)
+        alpha = np.maximum(Sigma_err / Sigma, 1e-12) ** 2
+    else:
+        y_train = Sigma
+        alpha = np.maximum(Sigma_err, 1e-12) ** 2
+
     gp = GaussianProcessRegressor(
         kernel=kernel,
-        alpha=np.maximum(Sigma_err, 1e-12) ** 2,   # heteroscedastic obs noise
+        alpha=alpha,   # heteroscedastic obs noise in the fitted target space
         n_restarts_optimizer=int(n_restarts),
         normalize_y=False,
         random_state=random_state,
     )
 
     # --- fit ---
-    gp.fit(E.reshape(-1, 1), Sigma)
+    gp.fit(E.reshape(-1, 1), y_train)
     #kernel_opt = gp.kernel_.k2.length_scale
     #lml = float(getattr(gp, "log_marginal_likelihood_value_", np.nan))
 
@@ -193,8 +212,12 @@ def fit_gp(
     Xp = x_pred.reshape(-1, 1)
 
     # posterior mean and samples
-    y_mean, _ = gp.predict(Xp, return_std=True)
+    y_mean, y_std = gp.predict(Xp, return_std=True)
     y_samples = gp.sample_y(Xp, n_samples=n_samples, random_state=random_state).T  # (S, M)
+
+    if target_space == "log":
+        y_mean = np.exp(y_mean + 0.5 * y_std**2)
+        y_samples = np.exp(y_samples)
 
     return {
         "x_pred": x_pred,
@@ -205,6 +228,7 @@ def fit_gp(
         "gp_log_marginal_likelihood": np.nan,#lml,
         "n_restarts": int(n_restarts),
         "n_samples": int(n_samples),
+        "target_space": target_space,
     }
 
 
