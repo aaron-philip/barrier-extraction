@@ -6,9 +6,9 @@
 E_cm,Sigma
 ```
 
-The commands below use the existing scripts in `scripts/` to reproduce the BNN
-training workflow: build the packed HDF5 dataset, train, merge part files, and
-plot. Run all commands from the repository root.
+Run all commands from the repository root. This example builds a packed HDF5
+dataset, trains a third-derivative-penalized SOC AutoBNN, merges the part file,
+and plots the extracted barrier distribution.
 
 ## Single Train
 
@@ -21,7 +21,7 @@ python ../../scripts/experimental_h5.py
 cd ../..
 ```
 
-2. Train one penalized BNN:
+2. Train one paper-style SOC BNN:
 
 ```bash
 python scripts/train_bnns.py \
@@ -31,10 +31,10 @@ python scripts/train_bnns.py \
   --out_h5 example/output/example_bnn.h5 \
   --kernel sum_of_changepoints \
   --likelihood_model normal_likelihood_lognormal_noise \
-  --width 20 \
-  --num_chains 2 \
-  --num_draws 20 \
-  --num_warmup 20 \
+  --width 50 \
+  --num_chains 4 \
+  --num_draws 50 \
+  --num_warmup 1000 \
   --d3_lambda 1.0 \
   --d3_lambda_space physical
 ```
@@ -56,9 +56,8 @@ python example/plot_barrier_distribution.py \
 
 ## Multiple Trains
 
-1. Build the HDF5 dataset as in the single-train workflow.
-
-2. Run several repeated trainings:
+BNN posterior fits can vary from run to run. Repeating a calculation is often
+the easiest way to separate a robust barrier feature from a poor fit.
 
 ```bash
 for run in 0 1 2 3; do
@@ -70,59 +69,43 @@ for run in 0 1 2 3; do
     --out_h5 example/output/example_bnn_repeats.h5 \
     --kernel sum_of_changepoints \
     --likelihood_model normal_likelihood_lognormal_noise \
-    --width 20 \
-    --num_chains 2 \
-    --num_draws 20 \
-    --num_warmup 20 \
+    --width 50 \
+    --num_chains 4 \
+    --num_draws 50 \
+    --num_warmup 1000 \
     --d3_lambda 1.0 \
     --d3_lambda_space physical
 done
-```
 
-3. Merge the repeated trainings:
-
-```bash
 python scripts/merge_bnn_parts.py \
   --out_h5 example/output/example_bnn_repeats.h5
-```
 
-4. Plot the extracted barrier distributions with posterior bands:
-
-```bash
 python example/plot_barrier_distribution.py \
   --h5 example/output/example_bnn_repeats.h5 \
   --out example/output/example_barrier_repeats.png \
   --max_groups 4
 ```
 
-## HPC / SLURM Runs
+## If The First Fit Looks Bad
 
-For a single paper-style dataset, use the SLURM script in
-`slurm/barrier-paper`. Submit it from the repository root and pass the dataset
-through `DATAFILE`:
+The first things to try are:
 
-```bash
-sbatch --export=ALL,DATAFILE=/path/to/dataset.h5 \
-  slurm/barrier-paper/train_bnns_d3lam1.slurm
-```
+- Swap the SOC kernel for the changepoint-of-safe-products kernel:
+  `--kernel changepoint_of_safe_products`.
+- Change the penalty strength, for example `--d3_lambda 0.1`, `1.0`, or `10.0`.
+- Retrain a few times and compare the merged posterior barrier plots.
 
-For example:
+## Paper-Scale Runs
 
-```bash
-sbatch --export=ALL,DATAFILE=/mnt/home/philipaa/scratch/barrier-paper-datasets/res_0.50MeV_noise0.01.h5 \
-  slurm/barrier-paper/train_bnns_d3lam1.slurm
-```
-
-That script submits the BNN training array and then submits the merge job with
-the correct dependency. It is configured for the paper dataset layout and writes
-outputs under the result paths set inside `slurm/barrier-paper/train_bnns_d3lam1.slurm`.
-
-To submit the full hardcoded d3-lambda-1 paper batch, run:
+The full calculations use the same training entry point with Slurm arrays. The
+main paper-style toy-data run is:
 
 ```bash
-bash slurm/barrier-paper/submit_all_bnns_d3lam1.sh
+sbatch slurm/paper-scripts/1-run_soc_wong_submitter-1.0d3.slurm
 ```
 
-That submitter loops over the datasets listed in the script, submits the BNN
-array jobs, merges each dataset after successful training, and queues the
-post-merge plotting/coverage jobs.
+For one packed dataset, follow the comments in:
+
+```text
+slurm/paper-scripts/1-train_all_soc_to_wong-1.0d3.slurm
+```

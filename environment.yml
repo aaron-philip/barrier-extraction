@@ -1,4 +1,4 @@
-name: barrier-extraction
+name: autobnn-test-fork
 channels:
   - conda-forge
 dependencies:
