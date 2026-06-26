@@ -98,6 +98,7 @@ def fit_wong_with_restarts(E, Sigma, Sigma_err, n_restarts=5):
 
 
 def make_x_pred(E):
+    """Build the common plotting/evaluation grid around an observed energy set."""
     return np.arange(max(0, E.min() - 5), E.max() + 5, 0.2)
 
 
@@ -160,7 +161,8 @@ def fit_gp(
 
     Returns arrays for HDF5 writing: x_pred, y_mean, y_samples, and barrier-space summaries.
     """
-    # --- defensives & shapes ---
+    # Normalize shapes up front so the GP path can accept slices from HDF5,
+    # pandas, or notebooks without special cases.
     E = np.asarray(E, float).reshape(-1)
     Sigma = np.asarray(Sigma, float).reshape(-1)
     Sigma_err = np.asarray(Sigma_err, float).reshape(-1)
@@ -173,8 +175,8 @@ def fit_gp(
     if target_space not in {"linear", "log"}:
         raise ValueError("target_space must be 'linear' or 'log'")
 
-    # --- kernel and GP ---
-    # length scale bounds based on grid spacing; robust to irregular grids
+    # Length-scale bounds follow the observed grid spacing so highly irregular
+    # datasets do not inherit an arbitrary scale from another benchmark.
     if len(E) > 1:
         dE = np.diff(E)
         ell_min = max(1e-3, np.min(np.abs(dE)))
@@ -186,6 +188,8 @@ def fit_gp(
     
 
     if target_space == "log":
+        # Delta-method propagation for log(Sigma): Var[log(Sigma)] is
+        # approximately (delta Sigma / Sigma)^2 for small relative errors.
         if np.any(Sigma <= 0):
             raise ValueError("Log-space GP requires strictly positive Sigma values.")
         y_train = np.log(Sigma)
@@ -211,7 +215,8 @@ def fit_gp(
     x_pred = np.arange(max(0.0, E.min() - 5.0), E.max() + 5.0, 0.2).astype(float)
     Xp = x_pred.reshape(-1, 1)
 
-    # posterior mean and samples
+    # In log mode, transform the posterior samples directly.  The mean includes
+    # the lognormal correction so it is the mean in sigma space, not median.
     y_mean, y_std = gp.predict(Xp, return_std=True)
     y_samples = gp.sample_y(Xp, n_samples=n_samples, random_state=random_state).T  # (S, M)
 

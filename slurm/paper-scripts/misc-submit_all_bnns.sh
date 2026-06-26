@@ -115,7 +115,7 @@ for FILE in "${DATASETS[@]}"; do
     --error="$LOG_DIR/merge_${BASENAME}_%j.err" \
     --time=00:20:00 --ntasks=1 --cpus-per-task=1 --mem=4G \
     --partition=frib-nodes \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$MERGE_PY\" --out_h5 \"$OUTH5\"")
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$MERGE_PY\" --out_h5 \"$OUTH5\"")
   echo "  merge: $MERGE_JOB_ID"
 
   # 3a) empirical coverage plot (UNNORMALIZED) after merge
@@ -126,7 +126,7 @@ for FILE in "${DATASETS[@]}"; do
     --error="$LOG_DIR/ec_${BASENAME}_%j.err" \
     --time=00:10:00 --ntasks=1 --cpus-per-task=1 --mem=2G \
     --partition=frib-nodes \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier")
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier")
   echo "  ec:        $EC_JOB_ID"
 
   # 3a.2) empirical coverage plot (NORMALIZED) after merge
@@ -137,7 +137,7 @@ for FILE in "${DATASETS[@]}"; do
     --error="$LOG_DIR/ecn_${BASENAME}_%j.err" \
     --time=00:10:00 --ntasks=1 --cpus-per-task=1 --mem=2G \
     --partition=frib-nodes \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier --normalize")
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier --normalize")
   echo "  ec (norm): $ECN_JOB_ID"
 
   # 3b) plot_with_metrics (after merge)
@@ -148,7 +148,7 @@ for FILE in "${DATASETS[@]}"; do
     --error="$LOG_DIR/met_${BASENAME}_%j.err" \
     --time=00:10:00 --ntasks=1 --cpus-per-task=1 --mem=2G \
     --partition=frib-nodes \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$PLOT_MET\" --h5 \"$OUTH5\"")
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$PLOT_MET\" --h5 \"$OUTH5\"")
   echo "  met:       $MET_JOB_ID"
 
   # ---- SEQUENTIAL GATE ----

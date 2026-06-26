@@ -34,7 +34,7 @@ OUTH5="$RESULT_DIR/${BASENAME}_gp_rbf.h5"
 # === Activate environment right before Python ===
 source ~/.bashrc
 conda deactivate
-conda activate ~/envs/autobnn-reproduce2
+conda activate ~/envs/autobnn-test-fork
 
 echo "Activated environment:"
 which python

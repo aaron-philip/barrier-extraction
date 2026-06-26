@@ -11,6 +11,9 @@
 
 set -euo pipefail
 
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+export REPO_DIR
+
 # Submit this file once to run the full 1.0d3 toy-data BNN pipeline:
 #   sbatch slurm/paper-scripts/1-run_soc_wong_submitter-1.0d3.slurm
 #
@@ -19,14 +22,14 @@ set -euo pipefail
 # its merge/coverage/metric follow-up jobs in sequence.
 
 mkdir -p "$REPO_DIR/logs"
-REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-export REPO_DIR
 
 echo "Submitter job: ${SLURM_JOB_ID:-unknown}"
 echo "Running on: $(hostname)"
 echo "Started at: $(date)"
 
 cd "$REPO_DIR"
+# The submit-all script handles dependency chaining and waits for each dataset
+# before launching the next one, which keeps cluster submit limits manageable.
 bash "$REPO_DIR/slurm/paper-scripts/1-submit_all_soc_trains_to_wong-1.0d3.sh"
 
 echo "Finished at: $(date)"

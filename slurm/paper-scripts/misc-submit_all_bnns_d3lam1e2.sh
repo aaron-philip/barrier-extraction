@@ -161,7 +161,7 @@ for FILE in "${DATASETS[@]}"; do
     --error="$LOG_DIR/merge_d3lam1e2_${BASENAME}_%j.err" \
     --time=06:00:00 --ntasks=1 --cpus-per-task=1 --mem=4G \
     --partition=frib-nodes \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$MERGE_PY\" --out_h5 \"$OUTH5\"")
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$MERGE_PY\" --out_h5 \"$OUTH5\"")
   echo "  merge: $MERGE_JOB_ID"
 
   EC_JOB_ID=$(submit_with_retry "ec $BASENAME" sbatch --parsable \
@@ -171,7 +171,7 @@ for FILE in "${DATASETS[@]}"; do
     --error="$LOG_DIR/ec_d3lam1e2_${BASENAME}_%j.err" \
     --time=06:00:00 --ntasks=1 --cpus-per-task=1 --mem=2G \
     --partition=frib-nodes \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier")
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier")
   echo "  ec:        $EC_JOB_ID"
 
   ECN_JOB_ID=$(submit_with_retry "ecn $BASENAME" sbatch --parsable \
@@ -181,7 +181,7 @@ for FILE in "${DATASETS[@]}"; do
     --error="$LOG_DIR/ecn_d3lam1e2_${BASENAME}_%j.err" \
     --time=06:00:00 --ntasks=1 --cpus-per-task=1 --mem=2G \
     --partition=frib-nodes \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier --normalize")
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier --normalize")
   echo "  ec (norm): $ECN_JOB_ID"
 
   MET_JOB_ID=$(submit_with_retry "met $BASENAME" sbatch --parsable \
@@ -191,7 +191,7 @@ for FILE in "${DATASETS[@]}"; do
     --error="$LOG_DIR/met_d3lam1e2_${BASENAME}_%j.err" \
     --time=06:00:00 --ntasks=1 --cpus-per-task=1 --mem=2G \
     --partition=frib-nodes \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$PLOT_MET\" --h5 \"$OUTH5\"")
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$PLOT_MET\" --h5 \"$OUTH5\"")
   echo "  met:       $MET_JOB_ID"
 
   wait_for_job "$EC_JOB_ID"

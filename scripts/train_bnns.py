@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-"""Core script used to train AutoBNN models to data that interfaces with given slurm scripts. 
-If you don't need to use SLURM, and can run on a single machine, you can use the sample_run/train_all.py script instead."""
+"""Train one AutoBNN fit from a packed HDF5 dataset.
+
+The Slurm arrays call this once per parameter sample.  Each invocation writes a
+small part file under ``OUT.h5.parts/``; ``merge_bnn_parts.py`` combines those
+parts after the array completes.
+"""
 import os, sys, time
 import argparse
 from pathlib import Path
@@ -144,20 +148,26 @@ def main():
         ds["file"].close()
         return
 
-    # Load one curve
+    # One Slurm task trains one representative noisy curve for a parameter
+    # sample.  ``stride`` maps a parameter-sample id to the first noisy
+    # replicate in the packed file.
     E_train, Sigma_train, Sigma_err_train, params_true = ds["get_i"](raw_idx)
 
-    # --- store ORIGINAL sigma-space data for GP-compatible plotting ---
+    # Store the original sigma-space data even though the BNN is trained in log
+    # space.  The notebooks and GP outputs expect this shared schema.
     Sigma_train_raw = np.asarray(Sigma_train, float)
     Sigma_err_raw   = np.asarray(Sigma_err_train, float)
 
-    # --- train in log-space (your current approach) ---
+    # AutoBNN sees log(Sigma).  At inference time compute_Df_log exponentiates
+    # the posterior functions before differentiating E*sigma(E).
     Sigma_train_log = np.log(np.maximum(Sigma_train_raw, 1e-30))
 
-    # prediction grid (same helper you used)
+    # Use one common prediction grid for sigma samples, barrier samples, and
+    # all downstream metrics/plots.
     E_pred = make_x_pred(E_train)
 
-    # normalization
+    # AutoBNN is much easier to train on centered/scaled inputs and targets.
+    # Keep the scales so autodiff can convert back to physical E and Sigma.
     x_scale = float(np.std(E_train)) if np.std(E_train) > 0 else 1.0
     x_shift = float(np.mean(E_train))
     y_scale = float(np.std(Sigma_train_log)) if np.std(Sigma_train_log) > 0 else 1.0
@@ -175,9 +185,8 @@ def main():
         y_shift=y_shift,
     )
 
-    # -----------------------------
-    # build + train MCMC BNN
-    # -----------------------------
+    # Derive deterministic but distinct seeds for repeated fits of the same
+    # curve.  This matters for the experimental repeat-analysis Slurm script.
     if args.sub_index is None:
         seed_int = int(args.random_state)
     else:
@@ -210,6 +219,8 @@ def main():
     
     t0 = time.time()
     if args.likelihood_model == "normal_likelihood_known_noise":
+        # Known-noise likelihood expects normalized log-sigma observations plus
+        # their normalized log-space standard deviations.
         std_log = Sigma_err_raw / np.maximum(Sigma_train_raw, 1e-30)     # shape (N,)
         std_log_norm = (std_log / y_scale)[..., None]               # shape (N,1)
         obs_train = np.concatenate([y_norm, std_log_norm], axis=1)    # (N,2)
@@ -232,9 +243,9 @@ def main():
         d3_loss_diag["d3_to_base_loss_ratio_mean"],
     )
 
-    # -----------------------------
-    # posterior predictive sigma samples on E_pred grid
-    # -----------------------------
+    # Return sigma-space posterior samples and exact autodiff barrier samples.
+    # The HDF5 stores both so notebooks do not need AutoBNN installed merely to
+    # reproduce paper plots.
     logger.info("Computing posterior predictive sigma samples...")
     y_samples, d2_samples = compute_Df_log(bnn_mcmc, E_pred, scales)
 
@@ -242,34 +253,39 @@ def main():
     if y_samples.ndim == 1:
         y_samples = y_samples[None, :]  # (1, M)
     y_mean = np.mean(y_samples, axis=0)
-    # -----------------------------
-    # compute metrics (only useful for Wong curves)
-    # -----------------------------
-    met = compute_metrics_for_fit(
-        x_pred=E_pred,
-        y_mean=y_mean,
-        y_samples=y_samples,
-        E_data=E_train,
-        E0_true=float(params_true[0]),
-        R0_true=float(params_true[1]),
-        hw_true=float(params_true[2]),
-        sigma_true_fn=sigma_true,
-        barrier_from_sigma_samples_fn=barrier_from_sigma_samples,
-        d2_samples=d2_samples,
-        pad=args.pad,
-        peak_window=args.peak_window,
-        barrier_smooth=args.barrier_smooth,
-    )
+    # Experimental HDF5 files use zero placeholders for Wong parameters.  Skip
+    # benchmark metrics there; the fit itself and barrier samples are still
+    # valid and plottable.
+    has_wong_truth = bool(np.all(np.isfinite(params_true)) and np.all(np.asarray(params_true) > 0.0))
+    if has_wong_truth:
+        met = compute_metrics_for_fit(
+            x_pred=E_pred,
+            y_mean=y_mean,
+            y_samples=y_samples,
+            E_data=E_train,
+            E0_true=float(params_true[0]),
+            R0_true=float(params_true[1]),
+            hw_true=float(params_true[2]),
+            sigma_true_fn=sigma_true,
+            barrier_from_sigma_samples_fn=barrier_from_sigma_samples,
+            d2_samples=d2_samples,
+            pad=args.pad,
+            peak_window=args.peak_window,
+            barrier_smooth=args.barrier_smooth,
+        )
+    else:
+        logger.info("Skipping Wong benchmark metrics because this dataset has no positive Wong truth parameters.")
+        met = {"metrics_available": False}
     met.update({
         "index": int(args.index),           # IMPORTANT: matches group name later
         "E0_true": float(params_true[0]),
         "R0_true": float(params_true[1]),
         "hw_true": float(params_true[2]),
+        "metrics_available": has_wong_truth,
     })
 
-    # -----------------------------
-    # write PART outputs (safe for arrays)
-    # -----------------------------
+    # Write one file per Slurm task.  HDF5 does not handle many array workers
+    # writing to the same file safely, so merging is a separate serial step.
     out_base = args.out_h5
     if args.extra is not None:
         out_base += f"_{args.extra}"
@@ -326,6 +342,7 @@ def main():
             "E0_true": float(params_true[0]),
             "R0_true": float(params_true[1]),
             "hw_true": float(params_true[2]),
+            "has_wong_truth": bool(has_wong_truth),
             "d3_lambda": float(args.d3_lambda),
             "d3_on_sigma": bool(args.d3_on_sigma),
             "d3_lambda_space": args.d3_lambda_space,

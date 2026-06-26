@@ -20,7 +20,8 @@ def compute_Df(
     """
     x_scale, x_shift, y_scale, y_shift = scales
     X = x_pred
-    # define g and its second derivative
+    # Differentiate with respect to the physical energy x.  The normalization
+    # inside f_sample means JAX automatically applies the chain rule.
     def f_sample(params, x):
         x_n = (x - x_shift)/x_scale
         x_b = jnp.atleast_2d([[x_n]])
@@ -37,13 +38,12 @@ def compute_Df(
     idx = jax.random.choice(key, all_d2.shape[0], (num_prune,), replace=False)
     return all_d2[idx]
 
-def compute_Df_log( bnn_est, x_pred: np.ndarray, scales: tuple, num_prune: int = 100 ) -> np.ndarray: 
-    """ 
-    TO DO
-    """ 
+def compute_Df_log(bnn_est, x_pred: np.ndarray, scales: tuple, num_prune: int = 100) -> np.ndarray:
+    """Return sigma-space posterior samples and d2(E*sigma)/dE2 samples."""
     x_scale, x_shift, y_scale, y_shift = scales
     X = x_pred 
-    # define g and its second derivative 
+    # The BNN predicts normalized log(Sigma).  Exponentiate back to Sigma before
+    # forming E*sigma(E), matching the method described in the paper draft.
     def f_sample(params, x): 
         x_n = (x - x_shift)/x_scale 
         x_b = jnp.atleast_2d([[x_n]]) 
@@ -59,9 +59,10 @@ def compute_Df_log( bnn_est, x_pred: np.ndarray, scales: tuple, num_prune: int =
     sigma_all = np.asarray(sigma_all)
     all_d2 = np.array(all_d2) 
 
-    # random prune 
-    key = jax.random.PRNGKey(0) 
-    idx = jax.random.choice(key, all_d2.shape[0], (num_prune,), replace=False) 
+    # Keep HDF5 outputs compact, but do not fail for short test/example runs.
+    n_keep = min(int(num_prune), int(all_d2.shape[0]))
+    key = jax.random.PRNGKey(0)
+    idx = jax.random.choice(key, all_d2.shape[0], (n_keep,), replace=False)
     return sigma_all[idx], all_d2[idx]
 
 

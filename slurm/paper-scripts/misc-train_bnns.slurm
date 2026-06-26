@@ -10,8 +10,8 @@
 #SBATCH --array=0-99   # one per parameter sample
 
 
-# Archived/misc variant. Do not sbatch this directly; use
-# slurm/paper-scripts/misc-submit_all_bnns.sh.
+# Archived/misc variant. Prefer the numbered 1.0d3 scripts for paper
+# reproduction; this file is kept for older result families.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
@@ -70,7 +70,7 @@ if [ -z "${SLURM_ARRAY_TASK_ID:-}" ]; then
     --mem=4G \
     --partition=frib-nodes \
     --export=ALL,OUTFILE="$OUTFILE" \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$REPO_DIR/scripts/merge_bnn_parts.py\" --out_h5 \"$OUTFILE\""
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$REPO_DIR/scripts/merge_bnn_parts.py\" --out_h5 \"$OUTFILE\""
   )
   echo "Submitted merge job: $MERGE_JOB_ID (afterok:$ARRAY_JOB_ID)"
   exit 0
@@ -81,7 +81,7 @@ fi
 # ------------------------------------------------------------
 source ~/.bashrc
 conda deactivate
-conda activate ~/envs/autobnn-reproduce2
+conda activate ~/envs/autobnn-test-fork
 
 # Force JAX to CPU and prevent any CUDA init attempt
 export JAX_PLATFORMS=cpu

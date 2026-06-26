@@ -85,7 +85,7 @@ OUTFILE="$RESULT_DIR/${H5_BASENAME}_${CURVE_NAME}_bnn_soc.h5"
 # --- Environment ---
 source ~/.bashrc
 conda deactivate
-conda activate ~/envs/autobnn-gpu
+conda activate ~/envs/autobnn-test-fork
 
 # Force JAX to CPU and prevent any CUDA init attempt
 export JAX_PLATFORMS=cpu

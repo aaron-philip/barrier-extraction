@@ -1,5 +1,9 @@
-"""This script demonstrates how to write the 4 experimental datasets (each with 1 curve) to a single HDF5 file,
- compatible with the BNN training scripts in the slurm folder"""
+"""Pack four experimental fusion datasets into the training HDF5 schema.
+
+The synthetic Wong files and experimental files share the same layout so the
+training scripts can be reused.  Experimental files store zero Wong parameters
+as placeholders, so benchmark metrics are skipped downstream.
+"""
 import numpy as np
 import os
 import argparse
@@ -110,6 +114,8 @@ def write_experiments_h5(arr, out_file="experiments.h5"):
     params_list = []
 
     for i in range(n_curves):
+        # Each entry is already one measured excitation function:
+        # energy, sigma, and absolute sigma uncertainty.
         E_data = np.asarray(arr[i][0], dtype=float).ravel()
         Sigma_meas = np.asarray(arr[i][1], dtype=float).ravel()
         Sigma_err_std = np.asarray(arr[i][2], dtype=float).ravel()
@@ -118,9 +124,11 @@ def write_experiments_h5(arr, out_file="experiments.h5"):
         m = min(E_data.size, Sigma_meas.size)
         E_data = E_data[:m]
         Sigma_meas = Sigma_meas[:m]
-        good = np.isfinite(E_data) & np.isfinite(Sigma_meas)
+        Sigma_err_std = Sigma_err_std[:m]
+        good = np.isfinite(E_data) & np.isfinite(Sigma_meas) & np.isfinite(Sigma_err_std)
         E_data = E_data[good]
         Sigma_meas = Sigma_meas[good]
+        Sigma_err_std = Sigma_err_std[good]
 
         # sort by energy
         order = np.argsort(E_data)
@@ -128,7 +136,8 @@ def write_experiments_h5(arr, out_file="experiments.h5"):
         Sigma_meas = Sigma_meas[order]
         Sigma_err_std = Sigma_err_std[order]
 
-        # "true" = measured (since experimental)
+        # There is no analytic truth for experiments.  Keep a measured-copy
+        # field only so the packed schema stays compatible with older notebooks.
         Sigma_true = Sigma_meas.copy()
 
         # error bars not provided → zeros

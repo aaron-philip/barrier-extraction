@@ -1,21 +1,28 @@
 # barrier-extraction
 
+This repository contains code, notebooks, Slurm workflows, examples, and saved
+results for extracting heavy-ion fusion barrier distributions from fusion
+cross-section data. It compares Gaussian-process reconstructions with AutoBNN
+compositional Bayesian neural-network reconstructions [3], including the
+third-derivative regularization used in the paper and thesis.
+
+Contact: philipaa@mit.edu
+
 ## Quick Start
 
 Create the conda environment used by the Slurm scripts:
 
 ```bash
-conda create -n autobnn-test-fork python=3.10 -y
-conda activate autobnn-test-fork
+mkdir ~/envs
+conda create -p ~/envs/autobnn-test-fork python=3.10 -y
+conda activate ~/envs/autobnn-test-fork
 python -m pip install -r requirements.txt
 python scripts/smoke_autobnn_dependency.py
 ```
 
-If you want to run something immediately, start with `example/`. It contains a
-small CSV input and copy-paste commands for a complete BNN fit, merge, and
-barrier plot.
+If you want to try out the AutoBNN regression tool for your own fusion data, start with `example/`. Just swap in your fusion data and follow the prompts to train an AutoBNN model and extract a barrier distribution.
 
-GPU users can add the CUDA 12 JAX extras after the baseline install:
+Training too slow? GPU users can add the CUDA 12 JAX extras after the baseline install:
 
 ```bash
 python -m pip install -r requirements-cuda12.txt
@@ -23,7 +30,7 @@ python -m pip install -r requirements-cuda12.txt
 
 ## Repository Map
 
-`example/` is the fastest way to try the workflow on a tiny dataset.
+`example/` is the fastest way to try the workflow on your own data. 
 
 `notebooks/` reproduces the paper and thesis plots. The notebooks can be run
 directly to explore the Gaussian-process and AutoBNN Bayesian inference
@@ -65,10 +72,8 @@ slurm/paper-scripts/1-train_all_soc_to_wong-1.0d3.slurm
 
 ## Dependency Notes
 
-This installs `autobnn` from the `aaron-philip/autobnn-barrier` fork pinned in
-`requirements.txt`. While that fork is private, installation requires SSH access
-to the repository. Once the fork is public, the dependency can be switched to an
-HTTPS GitHub URL.
+This installs `autobnn` from the `aaron-philip/autobnn-barrier` source snapshot pinned in
+`requirements.txt`. We slightly modified the original autobnn code (`tensorflow/probability/spinoffs/autobnn`) to expose certain MCMC parameters, add priors in the form of derivative penalties, and potentially incorporate quoted exp. uncertainties. Visit `aaron-philip/autobnn-barrier` to learn more!
 
 `oryx` is also installed from a compatible upstream Git commit. The plain PyPI
 `oryx==0.2.9` wheel can fail during `sum_of_changepoints` initialization with:
@@ -79,6 +84,10 @@ TypeError: abstract_eval_fun() missing 1 required keyword-only argument: 'debug_
 
 ## Citations
 
-[1] Paper citation: TODO, arXiv forthcoming.
+[1] Paper citation: TODO, manuscript forthcoming.
 
-[2] Thesis citation: TODO, arXiv forthcoming.
+[2] Thesis citation: TODO, manuscript forthcoming.
+
+[3] Urs Köster, "AutoBNN: Probabilistic time series forecasting with
+compositional Bayesian neural networks," Google Research Blog, March 28, 2024.
+https://research.google/blog/autobnn-probabilistic-time-series-forecasting-with-compositional-bayesian-neural-networks/

@@ -85,7 +85,7 @@ if [ -z "${SLURM_ARRAY_TASK_ID:-}" ]; then
     --mem=4G \
     --partition=frib-nodes \
     --export=ALL,OUTFILE="$OUTFILE" \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$REPO_DIR/scripts/merge_bnn_parts.py\" --out_h5 \"$OUTFILE\""
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$REPO_DIR/scripts/merge_bnn_parts.py\" --out_h5 \"$OUTFILE\""
   )
   echo "Submitted merge job: $MERGE_JOB_ID (afterok:$ARRAY_JOB_ID)"
   exit 0

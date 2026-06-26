@@ -32,7 +32,8 @@ def generate_datasets(n_curves, n_noise, noise_ratio, cv, mean_spacing, out_file
     params_list = []
 
     for _ in range(n_curves):
-        # Sample true parameters
+        # Sample one underlying Wong barrier, then generate several noisy
+        # measurements on that same physical curve.
         E0_true = np.random.uniform(*E0_range)
         R0_true = np.random.uniform(*R0_range)
         hbarw_true = np.random.uniform(*hbarw_range)
@@ -42,7 +43,8 @@ def generate_datasets(n_curves, n_noise, noise_ratio, cv, mean_spacing, out_file
         n_points_est = int(np.ceil((E_max - E_min) / mean_spacing)) + 1
 
         for _ in range(n_noise):
-            # Construct random or regular energy grid
+            # ``cv`` controls irregularity in the energy spacing.  ``cv=0`` is
+            # a uniform grid; larger values draw clipped normal spacings.
             if cv > 0.0:
                 spacings = np.random.normal(mean_spacing, cv * mean_spacing, n_points_est)
                 spacings = np.clip(spacings, 1e-3, None)
@@ -65,6 +67,8 @@ def generate_datasets(n_curves, n_noise, noise_ratio, cv, mean_spacing, out_file
             Strue_chunks.append(Sigma_true)
             params_list.append([E0_true, R0_true, hbarw_true])
 
+    # Store variable-length curves in one HDF5 file by concatenating arrays and
+    # keeping an index pointer, similar to CSR sparse-matrix storage.
     lengths = np.array([len(x) for x in E_chunks], dtype=np.int64)
     idx_ptr = np.zeros(len(lengths) + 1, dtype=np.int64)
     idx_ptr[1:] = np.cumsum(lengths)

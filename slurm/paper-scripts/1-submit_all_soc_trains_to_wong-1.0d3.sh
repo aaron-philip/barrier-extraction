@@ -55,6 +55,8 @@ wait_for_job () {
   local jobid="$1"
   echo "Waiting for job $jobid to finish..."
 
+  # Prefer sacct because it reports terminal failure states after a job leaves
+  # the queue.  Fall back to squeue-only polling on clusters without sacct.
   if command -v sacct >/dev/null 2>&1; then
     while true; do
       state="$(sacct -j "$jobid" --noheader --format=State | head -n 1 | awk '{print $1}')"
@@ -96,6 +98,7 @@ dataset_has_active_pipeline () {
   local basename="$1"
   local queue
   queue="$(squeue -u "$USER" -h -o '%j' 2>/dev/null || true)"
+  # Avoid submitting duplicate work if the monitor job is restarted.
   [[ "$queue" == *"bnn_d3lam1_${basename}"* ]] && return 0
   [[ "$queue" == *"merge_d3lam1_${basename}"* ]] && return 0
   [[ "$queue" == *"ec_d3lam1_${basename}"* ]] && return 0
@@ -125,6 +128,8 @@ submit_with_retry () {
       return 1
     fi
 
+    # FRIB can temporarily reject submissions when the per-user limit is hit.
+    # Sleep and retry instead of killing a long release run.
     if printf '%s\n' "$output" | grep -q "QOSMaxSubmitJobPerUserLimit"; then
       echo "Submit limit hit while queuing $kind. Sleeping 120s and retrying..." >&2
       sleep 120
@@ -175,7 +180,7 @@ for FILE in "${DATASETS[@]}"; do
     --error="$LOG_DIR/merge_d3lam1_${BASENAME}_%j.err" \
     --time=00:20:00 --ntasks=1 --cpus-per-task=1 --mem=4G \
     --partition=frib-nodes \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$MERGE_PY\" --out_h5 \"$OUTH5\"")
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$MERGE_PY\" --out_h5 \"$OUTH5\"")
   echo "  merge: $MERGE_JOB_ID"
 
   EC_JOB_ID=$(submit_with_retry "ec $BASENAME" sbatch --parsable \
@@ -185,7 +190,7 @@ for FILE in "${DATASETS[@]}"; do
     --error="$LOG_DIR/ec_d3lam1_${BASENAME}_%j.err" \
     --time=00:10:00 --ntasks=1 --cpus-per-task=1 --mem=2G \
     --partition=frib-nodes \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier")
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier")
   echo "  ec:        $EC_JOB_ID"
 
   ECN_JOB_ID=$(submit_with_retry "ecn $BASENAME" sbatch --parsable \
@@ -195,7 +200,7 @@ for FILE in "${DATASETS[@]}"; do
     --error="$LOG_DIR/ecn_d3lam1_${BASENAME}_%j.err" \
     --time=00:10:00 --ntasks=1 --cpus-per-task=1 --mem=2G \
     --partition=frib-nodes \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier --normalize")
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$PLOT_EC\" --csv \"$OUTCSV\" --which barrier --normalize")
   echo "  ec (norm): $ECN_JOB_ID"
 
   MET_JOB_ID=$(submit_with_retry "met $BASENAME" sbatch --parsable \
@@ -205,7 +210,7 @@ for FILE in "${DATASETS[@]}"; do
     --error="$LOG_DIR/met_d3lam1_${BASENAME}_%j.err" \
     --time=00:10:00 --ntasks=1 --cpus-per-task=1 --mem=2G \
     --partition=frib-nodes \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$PLOT_MET\" --h5 \"$OUTH5\"")
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$PLOT_MET\" --h5 \"$OUTH5\"")
   echo "  met:       $MET_JOB_ID"
 
   wait_for_job "$EC_JOB_ID"

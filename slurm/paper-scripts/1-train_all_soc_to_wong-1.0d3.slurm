@@ -42,7 +42,8 @@ if [ -z "${DATAFILE:-}" ]; then
   exit 1
 fi
 
-# Resolve DATAFILE against DATA_DIR if it's not an existing file path.
+# Resolve DATAFILE against DATA_DIR if it is a basename.  This lets users submit
+# from anywhere without editing the Slurm file.
 if [ -f "$DATAFILE" ]; then
   DATA_PATH="$DATAFILE"
 else
@@ -79,10 +80,8 @@ submit_sbatch () {
   printf '%s\n' "$job_id"
 }
 
-# ------------------------------------------------------------
-# If this script is run as a normal sbatch submission (not an
-# array task), auto-submit the array and then the merge job.
-# ------------------------------------------------------------
+# If submitted without --array, turn this file into a convenience wrapper:
+# submit the 100-task array and a dependent serial merge job.
 if [ -z "${SLURM_ARRAY_TASK_ID:-}" ]; then
   echo "Submitting array job for dataset: $DATA_PATH"
   echo "Output will be: $OUTFILE"
@@ -102,15 +101,14 @@ if [ -z "${SLURM_ARRAY_TASK_ID:-}" ]; then
     --mem=4G \
     --partition=frib-nodes \
     --export=ALL,OUTFILE="$OUTFILE" \
-    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-reproduce2; python \"$REPO_DIR/scripts/merge_bnn_parts.py\" --out_h5 \"$OUTFILE\""
+    --wrap="source ~/.bashrc; conda deactivate; conda activate ~/envs/autobnn-test-fork; python \"$REPO_DIR/scripts/merge_bnn_parts.py\" --out_h5 \"$OUTFILE\""
   )
   echo "Submitted merge job: $MERGE_JOB_ID (afterok:$ARRAY_JOB_ID)"
   exit 0
 fi
 
-# ------------------------------------------------------------
-# Array task body (runs when SLURM_ARRAY_TASK_ID is set)
-# ------------------------------------------------------------
+# Array task body.  Each task trains one parameter sample and writes one part
+# file; no two tasks touch the same HDF5 file.
 source ~/.bashrc
 conda deactivate
 conda activate ~/envs/autobnn-test-fork

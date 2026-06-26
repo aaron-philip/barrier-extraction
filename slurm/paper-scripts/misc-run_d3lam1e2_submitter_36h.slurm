@@ -11,9 +11,9 @@
 
 set -euo pipefail
 
-mkdir -p "$REPO_DIR/logs"
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 export REPO_DIR
+mkdir -p "$REPO_DIR/logs"
 
 echo "Submitter job: ${SLURM_JOB_ID:-unknown}"
 echo "Running on: $(hostname)"

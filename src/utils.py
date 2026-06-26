@@ -197,6 +197,8 @@ def load_packed_hdf5(path):
     """
     f = h5py.File(path, "r")
 
+    # Curves can have different numbers of energy points.  The packed schema
+    # stores concatenated arrays plus idx_ptr boundaries for each curve.
     E_cat = f["E_cat"]
     Sigma_cat = f["Sigma_cat"]
     Sigma_err_cat = f["Sigma_err_cat"]
@@ -509,6 +511,8 @@ def compute_metrics_for_fit(
     Truth barrier is ALWAYS computed from sigma_true via barrier_from_sigma_samples_fn
     to keep metrics comparable across models.
     """
+    # Restrict metrics to the observed data range plus a small pad.  The
+    # prediction grid may extend farther for plotting context.
     xmin = float(np.min(E_data) - pad)
     xmax = float(np.max(E_data) + pad)
     m = (x_pred >= xmin) & (x_pred <= xmax)
@@ -519,7 +523,7 @@ def compute_metrics_for_fit(
     ym = np.asarray(y_mean, float)[m]
     ys = np.asarray(y_samples, float)[:, m]
 
-    # true sigma on x_pred region
+    # Wong benchmark truth is available analytically for synthetic datasets.
     ytrue = sigma_true_fn(x, E0=E0_true, R0=R0_true, hbarw=hw_true)
 
     sigma_mae, sigma_rmse = mae_rmse(ytrue, ym)
@@ -544,7 +548,8 @@ def compute_metrics_for_fit(
         D_samps = barrier_from_sigma_samples_fn(x, ys)              # (nsamp, nx_mask)
         D_mean  = barrier_from_sigma_samples_fn(x, ym[None, :])[0]  # (nx_mask,)
 
-    # Truth barrier (keep consistent across GP/BNN)
+    # Truth barrier uses the same numerical helper as the GP path.  That keeps
+    # GP and BNN metric comparisons from mixing derivative conventions.
     D_true = barrier_from_sigma_samples_fn(x, ytrue[None, :])[0]    # (nx_mask,)
 
     b_mae, b_rmse = mae_rmse(D_true, D_mean)

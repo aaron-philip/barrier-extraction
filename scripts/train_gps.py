@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""This script trains Gaussian Process (GP) models to Wong datasets that have been packed into a single HDF5 file.
-This is the script called by given slurm scripts."""
+"""Train GP baselines for every curve in one packed HDF5 dataset."""
 import os, sys, time
 from pathlib import Path
 import numpy as np
@@ -58,7 +57,8 @@ def main():
     logger.info(f"=== Starting GP training on HDF5 dataset: {args.data} ===")
     logger.info(f"GP target space: {args.target_space}")
 
-    # lazy input
+    # Packed files concatenate variable-length curves.  ``load_packed_hdf5``
+    # returns a lazy accessor so we only materialize one curve at a time.
     ds = load_packed_hdf5(args.data)
     N_total = int(ds["N"])
     N = N_total if args.max_items is None else min(N_total, int(args.max_items))
@@ -83,7 +83,9 @@ def main():
             try:
                 E_i, S_i, Se_i, p_true = ds["get_i"](i)
                 
-                # Fit a Wong to estimate where to changepoint (potentially update to treat fitted Wong as prior)
+                # Paper baseline: a single RBF kernel.  The commented
+                # changepoint/RQ kernels below are retained for exploratory
+                # comparisons, but are not part of the release pipeline.
                 #popt, pcov, chi2= fit_wong_with_restarts(E_i, S_i, Se_i, n_restarts=5)
                 #E0 = popt[0]
                 k_right = 1.0*RBF(length_scale_bounds=(1.0, 10.0))
@@ -110,7 +112,9 @@ def main():
                    #         )
                 ) 
            
-                # --- write HDF5 group (unchanged schema for plotting script) ---
+                # One HDF5 group per fitted curve.  This mirrors the BNN merged
+                # schema closely enough that the notebooks can compare methods
+                # by swapping only the result directory.
                 grp = f_out.create_group(f"{i}")
 
                 grp.create_dataset("E_data", data=E_i)
@@ -133,7 +137,8 @@ def main():
                     "index": int(i),
                 })
 
-                # --- compute & accumulate CSV metrics (same columns as your summary script) ---
+                # CSV metrics are redundant with the HDF5 predictions, but they
+                # make the paper summary plots fast and lightweight to rerun.
                 met = compute_metrics_for_fit(
                     x_pred=res["x_pred"],
                     y_mean=res["y_mean"],
@@ -165,7 +170,8 @@ def main():
                 elapsed = (time.time() - start) / 60.0
                 logger.info(f"Processed {i + 1}/{N} | Elapsed: {elapsed:.1f} min")
 
-    # write CSV once at the end (so you always get a valid file)
+    # Write the CSV once at the end.  If an individual GP fit fails, it is
+    # logged and omitted rather than aborting the full dataset.
     df = pd.DataFrame(rows)
     df.to_csv(out_csv, index=False)
     logger.info(f"Wrote metrics CSV with {len(df)} rows -> {out_csv}")
