@@ -3,7 +3,7 @@
 # AutoBNN is installed from the barrier-extraction fork. This commit is the
 # fork snapshot whose autobnn/ package matches the current local modified
 # AutoBNN source used for the barrier-extraction experiments.
-autobnn @ git+ssh://git@github.com/aaron-philip/autobnn-barrier.git@d9bc1bdd7b0fd3197eea8af7c22f473ce85c0eb5
+autobnn @ git+https://github.com/aaron-philip/autobnn-barrier.git@d9bc1bdd7b0fd3197eea8af7c22f473ce85c0eb5
 
 numpy==1.26.4
 scipy==1.14.1
