@@ -84,9 +84,13 @@ TypeError: abstract_eval_fun() missing 1 required keyword-only argument: 'debug_
 
 ## Citations
 
-[1] Paper citation: TODO, manuscript forthcoming.
+[1] Aaron Philip, Pablo Giuliani, and Kyle Godbey,
+"[Bayesian Inference for Extracting Barrier Distributions from Fusion Excitation Functions](https://arxiv.org/abs/2607.14422),"
+arXiv:2607.14422 (2026).
 
-[2] Thesis citation: TODO, manuscript forthcoming.
+[2] Aaron Philip,
+"[Extracting Barrier Distributions from Fusion Cross Sections](https://arxiv.org/abs/2607.07551),"
+arXiv:2607.07551 (2026).
 
 [3] Urs Köster, "AutoBNN: Probabilistic time series forecasting with
 compositional Bayesian neural networks," Google Research Blog, March 28, 2024.
