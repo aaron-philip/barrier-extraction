@@ -1,0 +1,47 @@
+{
+  "source": "/mnt/ufs18/rs/ascsn/aaron-philip/barrier-extraction/data/packed/res_0.25MeV_noise0.01.h5",
+  "source_sha256": "32184f66705a717b702702f3b3737a445799f5980f2e33e874a511bd178120f1",
+  "selection_seed": 42,
+  "source_parameter_indices": [
+    8,
+    9,
+    19,
+    41,
+    60,
+    68,
+    71,
+    82,
+    94,
+    96
+  ],
+  "source_rows": [
+    80,
+    90,
+    190,
+    410,
+    600,
+    680,
+    710,
+    820,
+    940,
+    960
+  ],
+  "noise_realization": 0,
+  "resolutions": [
+    0.25,
+    0.5,
+    1.0,
+    1.5,
+    2.0,
+    2.5,
+    3.0
+  ],
+  "evaluation_inset_MeV": 3.0,
+  "coverage_levels": [
+    0.25,
+    0.5,
+    0.68,
+    0.9,
+    0.95
+  ]
+}
